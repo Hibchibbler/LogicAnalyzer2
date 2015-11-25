@@ -144,28 +144,6 @@ CONSTANT PA_READ_BUTTONS,        0D
 ;  Then C&C reads the hub registers, and interprets the data accordingly.
 
 
-; UART Status
-; -----------
-;
-; CONSTANT UART_status_port,        0A         ; Read status (same as PA_READ_UART_STATUS)
-; CONSTANT UART_Tx_data_present,    00000001'b ; Tx   data_present - bit0
-; CONSTANT UART_Tx_half_full,       00000010'b ;         half_full - bit1
-; CONSTANT UART_Tx_full,            00000100'b ;              full - bit2
-; CONSTANT UART_Rx_data_present,    00001000'b ; Rx   data_present - bit3
-; CONSTANT UART_Rx_half_full,       00010000'b ;         half_full - bit4
-; CONSTANT UART_Rx_full,            00100000'b ;              full - bit5
-;
-; Write data to UART_TX6
-; ----------------------
-;
-; CONSTANT UART_TX6_output_port, 09            ; (Same as PA_WRITE_UART_DATA)
-;
-; Read data from UART_RX6
-; -----------------------
-;
-; CONSTANT UART_RX6_input_port, 09             ; (Same as PA_READ_UART_DATA)
-
-
 ; ===============
 ; === main()  ===
 ; ===============
@@ -232,8 +210,31 @@ main_L0:
     LOAD    s5,     20 ;' '
     CALL    UART_TX
 
+wait_for_UART_RX: 
+    CALL UART_RX
+    JUMP Z, wait_for_UART_RX    
+    
+    LOAD    s1, s5    
+    CALL LED_wrleds
     
     
+    FETCH   s6,             SP_SEM
+    SUB     s6,             01                  ;       decrement semaphore
+    STORE   s6,             SP_SEM              ;
+    JUMP    main_L0                             ;   } // end - main while loop  
+                
+            
+;**************************************************************************************
+; Support functions
+;************************************************************************************** 
+
+ButtonTest: 
+    INPUT   s1,             PA_READ_BUTTONS    
+    CALL LED_wrleds
+    RETURN
+    
+HubRegisterTest:
+    ; Write To All Hub Registers a Unique Pattern
     LOAD s1, 01
     OUTPUT s1, PA_WRITE_HUB_REGISTER0
     
@@ -258,6 +259,8 @@ main_L0:
     LOAD s1, FF
     OUTPUT s1, PA_WRITE_HUB_REGISTER7
     
+    ; Read back the Hub Registers, looking
+    ; for correct unique pattern
     INPUT s1, PA_READ_HUB_REGISTER0
     COMPARE s1, 01
     JUMP NZ, ErrorReadRegister
@@ -290,68 +293,19 @@ main_L0:
     COMPARE s1, FF
     JUMP NZ, ErrorReadRegister
     
-    ;Read back success - light pretty pattern of leds
+    ;Read back success
+    LOAD s1, FF
+    CALL LED_wrleds_hi      
     
-    ;Don't tally error
-    FETCH   s1,             SP_ERR_STATE
-    ADD     s1,             00
-    STORE   s1,             SP_ERR_STATE
-    
-    
-    
-    JUMP SucessReadRegister
+    RETURN
 ErrorReadRegister:
-    ;Read back failed - light all leds
-    ; Do tally error
-    FETCH   s1,             SP_ERR_STATE
-    OR      s1,             01
-    STORE   s1,             SP_ERR_STATE
+    ;Read back failed
+    LOAD s1, 00
+    CALL LED_wrleds_hi
     
-SucessReadRegister:
-
-
-    
-ButtonTest:            
-    INPUT   s1,             PA_READ_BUTTONS
-    AND     s1,             04
-    JUMP    NZ,             ExpectedButtonPressed
-    
-    ; Do tally error
-    FETCH   s1,             SP_ERR_STATE
-    OR     s1,             02
-    STORE   s1,             SP_ERR_STATE
-    JUMP    TheEnding
-ExpectedButtonPressed:
-    ;Don't tally error
-    FETCH   s1,             SP_ERR_STATE
-    ADD     s1,             00
-    STORE   s1,             SP_ERR_STATE
-    
-TheEnding:
-    XOR     s1,             FF
-    CALL    LED_wrleds
-    CALL    LED_wrleds_hi
-    
-    ; Reset error code.
-    ADD     s1,             00
-    STORE   s1,             SP_ERR_STATE
-    
-    FETCH   s6,             SP_SEM
-    SUB     s6,             01                  ;       decrement semaphore
-    STORE   s6,             SP_SEM              ;
-    JUMP    main_L0                             ;   } // end - main while loop  
-                
-            
-;**************************************************************************************
-; Support functions
-;************************************************************************************** 
-; UART_TX:        INPUT  s0, UART_status_port                ;Check if buffer is full
-                ; TEST   s0, UART_Tx_full
-                ; JUMP   NZ, UART_TX                          ;wait if full
-                ; OUTPUT s5, UART_TX6_output_port
-                ; RETURN 
-                
+    RETURN
 INCLUDE "uart_interface_routines.psm"
+
 ;*************************
 ; Nexys4 I/O Functions
 ;*************************
