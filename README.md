@@ -37,5 +37,5 @@ connects. The Logic Capture hardware connects to the hub.
 The UARTS connect to the hub. The buttons, switches, 
 and LEDs connect to the hub.
 
-![logo](https://raw.github.com/Hibchibbler/LogicAnalyzer2/master/Stuff/Kernel_rev0.png)
+![logo](https://raw.githubusercontent.com/Hibchibbler/LogicAnalyzer2/master/Stuff/Kernel_rev0.PNG)
 
