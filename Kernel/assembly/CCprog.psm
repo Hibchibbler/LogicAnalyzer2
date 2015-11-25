@@ -1,0 +1,467 @@
+; -----------------------------------------------------------------
+; Version:  0.0
+; Author:   Daniel Ferguson
+; Date:     
+;
+;
+; ----------------------------------------------------------------- 
+
+
+
+
+; ======================
+; === Port Addresses ===
+; ======================
+
+
+; =====================================
+; === Register bit mappings (masks) ===
+; =====================================
+    
+;  bit masks for pushbuttons and switches for seven segment emulator
+CONSTANT    MSK_ALLBTNS,    1F      ; Buttons are in bits[5:0]
+CONSTANT    MSK_PBTNS,      0F      ; Mask for 4 buttons to display on LED
+CONSTANT    MSK_BTN_CENTER, 10      ; Pushbutton Center is bit 4
+CONSTANT    MSK_BTN_WEST,   08      ; Pushbutton Left is bit 3
+CONSTANT    MSK_BTN_NORTH,  04      ; Pushbutton Up is bit 2
+CONSTANT    MSK_BTN_EAST,   02      ; Pushbutton Right is bit 1
+CONSTANT    MSK_BTN_SOUTH,  01      ; Pushbutton Down is bit 0
+
+CONSTANT    MSK_ALLSW_LO,   FF      ; Slide switches are in bits[7:0] of PA_SLSWTCH_07_00
+CONSTANT    MSK_ALLSW_HI,   FF      ; Slide switchees are in bits[7:0] of PA_SLSWTCH_15_08
+CONSTANT    MSK_SW7,        80      ; Slide switch 7 is bit 7
+CONSTANT    MSK_SW6,        40      ; Slide switch 6 is bit 6
+CONSTANT    MSK_SW5,        20      ; Slide switch 5 is bit 5
+CONSTANT    MSK_SW4,        10      ; Slide switch 4 is bit 4
+CONSTANT    MSK_SW3,        08      ; Slide switch 3 is bit 3
+CONSTANT    MSK_SW2,        04      ; Slide switch 2 is bit 2
+CONSTANT    MSK_SW1,        02      ; Slide switch 1 is bit 1
+CONSTANT    MSK_SW0,        01      ; Slide switch 0 is bit 0
+
+CONSTANT    MSK_SW15,       80      ; Slide switch 15 is bit 7
+CONSTANT    MSK_SW14,       40      ; Slide switch 14 is bit 6
+CONSTANT    MSK_SW13,       20      ; Slide switch 13 is bit 5
+CONSTANT    MSK_SW12,       10      ; Slide switch 12 is bit 4
+CONSTANT    MSK_SW11,       08      ; Slide switch 11 is bit 3
+CONSTANT    MSK_SW10,       04      ; Slide switch 10 is bit 2
+CONSTANT    MSK_SW09,       02      ; Slide switch 09 is bit 1
+CONSTANT    MSK_SW08,       01      ; Slide switch 08 is bit 0
+
+
+; bit mask for LEDs
+CONSTANT    MSK_LEDS_LO,    FF      ; Mask for rightmost 8 LEDs on the Nexys4
+CONSTANT    MSK_LEDS_HI,    FF      ; Mask for the lefmost 8 LEDs on the Nexys4
+
+
+
+; nibble masks
+CONSTANT    MSKLOWNIB,      0F      ; Mask out high nibble of byte
+CONSTANT    MSKHIGHNIB,     F0      ; Mask out low nibble of byte
+CONSTANT    INVLOWNIB,      0F      ; Invert low nibble of byte
+
+
+; =============================
+; === Useful Data Constants ===
+; =============================
+
+;  Constants for True and False and Null
+CONSTANT    FALSE,          00
+CONSTANT    TRUE,           01
+CONSTANT    NULL,           00
+
+
+
+; ==============================
+; === Storage for old values ===
+; ==============================
+CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
+CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
+CONSTANT    SP_TEMP2,       22      ;
+
+CONSTANT    SP_ERR_STATE,   25
+
+; Output Port Addresses
+CONSTANT PA_WRITE_HUB_REGISTER0, 00 
+CONSTANT PA_WRITE_HUB_REGISTER1, 01
+CONSTANT PA_WRITE_HUB_REGISTER2, 02
+CONSTANT PA_WRITE_HUB_REGISTER3, 03
+CONSTANT PA_WRITE_HUB_REGISTER4, 04
+CONSTANT PA_WRITE_HUB_REGISTER5, 05
+CONSTANT PA_WRITE_HUB_REGISTER6, 06
+CONSTANT PA_WRITE_HUB_REGISTER7, 07
+CONSTANT PA_WRITE_LOGCAP,        08
+
+CONSTANT PA_WRITE_UART_DATA,     09
+CONSTANT PA_WRITE_LED_7_0,       0A
+CONSTANT PA_WRITE_LED_15_8,      0B
+
+; Input Port Addresses
+CONSTANT PA_READ_HUB_REGISTER0,  00 
+CONSTANT PA_READ_HUB_REGISTER1,  01
+CONSTANT PA_READ_HUB_REGISTER2,  02
+CONSTANT PA_READ_HUB_REGISTER3,  03
+CONSTANT PA_READ_HUB_REGISTER4,  04
+CONSTANT PA_READ_HUB_REGISTER5,  05
+CONSTANT PA_READ_HUB_REGISTER6,  06
+CONSTANT PA_READ_HUB_REGISTER7,  07
+                                ;08 missing on purpose
+CONSTANT PA_READ_UART_DATA,      09
+CONSTANT PA_READ_UART_STATUS,    0A
+CONSTANT PA_READ_SWITCHES_15_8,  0B
+CONSTANT PA_READ_SWITCHES_7_0,   0C
+CONSTANT PA_READ_BUTTONS,        0D
+
+; --------- UARTs -------------------
+; Read UART Data
+; Read UART Status
+; Write UART Data
+; Signal UART Reset Command
+; --------- Nexys4 IO Peripherals ---
+; Write LEDs
+; Read Buttons
+; Read Switches
+; --------- Logic Capture -----------
+
+;
+; Write to Hub Register [0-7]   - Output Port [0-7] 
+; Signal LogCap To Do Something - Output Port 8
+; Read from Hub Register [0-7]  - Input  Port [0-7] 
+;
+; To Do Something?
+; 00 - Signal LogCap To Read Trigger Settings From Hub Registers
+; 01 - Signal LogCap to Read Channel Settings From Hub Registers
+; 02 - Signal LogCap to Read Buffer Settings From Hub Registers
+; 03 - Signal LogCap to Read Acquisition Settings From Hub Registers
+; 04 - Signal LogCap to Write Trace Statistics To Hub Registers
+; 05 - Signal LogCap To Write Hardware Status To Hub Registers
+;
+; With these we :
+;  1) write trigger settings (up to 8 bytes)
+;  to registers in the hub. Then we Signal LogCap to Read
+;  the registers in the hub, and to interpret it as trigger settings
+;
+;  2) Signal LogCap to write Status of the hardware, or the size of the trace data.
+;  Then C&C reads the hub registers, and interprets the data accordingly.
+
+
+; UART Status
+; -----------
+;
+; CONSTANT UART_status_port,        0A         ; Read status (same as PA_READ_UART_STATUS)
+; CONSTANT UART_Tx_data_present,    00000001'b ; Tx   data_present - bit0
+; CONSTANT UART_Tx_half_full,       00000010'b ;         half_full - bit1
+; CONSTANT UART_Tx_full,            00000100'b ;              full - bit2
+; CONSTANT UART_Rx_data_present,    00001000'b ; Rx   data_present - bit3
+; CONSTANT UART_Rx_half_full,       00010000'b ;         half_full - bit4
+; CONSTANT UART_Rx_full,            00100000'b ;              full - bit5
+;
+; Write data to UART_TX6
+; ----------------------
+;
+; CONSTANT UART_TX6_output_port, 09            ; (Same as PA_WRITE_UART_DATA)
+;
+; Read data from UART_RX6
+; -----------------------
+;
+; CONSTANT UART_RX6_input_port, 09             ; (Same as PA_READ_UART_DATA)
+
+
+; ===============
+; === main()  ===
+; ===============
+
+ADDRESS 000
+    JUMP    main                        ; workaround to avoid location 3 corruption
+    JUMP    main                        ; by Vivado Hardware Manager.  Bug was flagged by
+    JUMP    main                        ; Ken Chapman and is known to be in 2014.2
+    JUMP    main                        ; Address 003 can be corrupted by Vivado HW manager
+                                                    ;
+main:           
+
+    LOAD    s1,     00                  ; clear the semaphore
+    STORE   s1,     SP_SEM              ;
+
+    LOAD    s5,     00
+    STORE   s5,     SP_ERR_STATE
+    ENABLE  INTERRUPT                   ; get the ball rolling
+                            
+
+; ==================
+; === Main  Loop ===
+; ==================
+                                                    ;   while(1) {  // main loop is an infinite loop
+main_L0:
+    FETCH   s6,     SP_SEM              ;       while (SP_SEMA == 0)  {}   // loop until isr updates rojobot registers
+    COMPARE s6,     00              ;
+    JUMP    Z,      main_L0             ;
+    
+    
+    LOAD    s5,     48 ;'H'
+    CALL    UART_TX
+    
+    LOAD    s5,     45 ;'E'
+    CALL    UART_TX
+    
+    LOAD    s5,     4C ;'L'
+    CALL    UART_TX
+    
+    LOAD    s5,     4C ;'L'
+    CALL    UART_TX
+    
+    LOAD    s5,     4F ;'O'
+    CALL    UART_TX
+    
+    LOAD    s5,     20 ;' '
+    CALL    UART_TX
+    
+    LOAD    s5,     57 ;'W'
+    CALL    UART_TX
+    
+    LOAD    s5,     6f ;'o'
+    CALL    UART_TX
+    
+    LOAD    s5,     72 ;'r'
+    CALL    UART_TX
+    
+    LOAD    s5,     6c ;'l'
+    CALL    UART_TX
+    
+    LOAD    s5,     64 ;'d'
+    CALL    UART_TX
+    
+    LOAD    s5,     20 ;' '
+    CALL    UART_TX
+
+    
+    
+    LOAD s1, 01
+    OUTPUT s1, PA_WRITE_HUB_REGISTER0
+    
+    LOAD s1, 02
+    OUTPUT s1, PA_WRITE_HUB_REGISTER1
+    
+    LOAD s1, 04
+    OUTPUT s1, PA_WRITE_HUB_REGISTER2
+    
+    LOAD s1, 08
+    OUTPUT s1, PA_WRITE_HUB_REGISTER3
+    
+    LOAD s1, 0F
+    OUTPUT s1, PA_WRITE_HUB_REGISTER4
+    
+    LOAD s1, 10
+    OUTPUT s1, PA_WRITE_HUB_REGISTER5
+    
+    LOAD s1, AA
+    OUTPUT s1, PA_WRITE_HUB_REGISTER6
+    
+    LOAD s1, FF
+    OUTPUT s1, PA_WRITE_HUB_REGISTER7
+    
+    INPUT s1, PA_READ_HUB_REGISTER0
+    COMPARE s1, 01
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER1
+    COMPARE s1, 02
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER2
+    COMPARE s1, 04
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER3
+    COMPARE s1, 08
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER4
+    COMPARE s1, 0F
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER5
+    COMPARE s1, 10
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER6
+    COMPARE s1, AA
+    JUMP NZ, ErrorReadRegister
+    
+    INPUT s1, PA_READ_HUB_REGISTER7
+    COMPARE s1, FF
+    JUMP NZ, ErrorReadRegister
+    
+    ;Read back success - light pretty pattern of leds
+    
+    ;Don't tally error
+    FETCH   s1,             SP_ERR_STATE
+    ADD     s1,             00
+    STORE   s1,             SP_ERR_STATE
+    
+    
+    
+    JUMP SucessReadRegister
+ErrorReadRegister:
+    ;Read back failed - light all leds
+    ; Do tally error
+    FETCH   s1,             SP_ERR_STATE
+    OR      s1,             01
+    STORE   s1,             SP_ERR_STATE
+    
+SucessReadRegister:
+
+
+    
+ButtonTest:            
+    INPUT   s1,             PA_READ_BUTTONS
+    AND     s1,             04
+    JUMP    NZ,             ExpectedButtonPressed
+    
+    ; Do tally error
+    FETCH   s1,             SP_ERR_STATE
+    OR     s1,             02
+    STORE   s1,             SP_ERR_STATE
+    JUMP    TheEnding
+ExpectedButtonPressed:
+    ;Don't tally error
+    FETCH   s1,             SP_ERR_STATE
+    ADD     s1,             00
+    STORE   s1,             SP_ERR_STATE
+    
+TheEnding:
+    XOR     s1,             FF
+    CALL    LED_wrleds
+    CALL    LED_wrleds_hi
+    
+    ; Reset error code.
+    ADD     s1,             00
+    STORE   s1,             SP_ERR_STATE
+    
+    FETCH   s6,             SP_SEM
+    SUB     s6,             01                  ;       decrement semaphore
+    STORE   s6,             SP_SEM              ;
+    JUMP    main_L0                             ;   } // end - main while loop  
+                
+            
+;**************************************************************************************
+; Support functions
+;************************************************************************************** 
+; UART_TX:        INPUT  s0, UART_status_port                ;Check if buffer is full
+                ; TEST   s0, UART_Tx_full
+                ; JUMP   NZ, UART_TX                          ;wait if full
+                ; OUTPUT s5, UART_TX6_output_port
+                ; RETURN 
+                
+INCLUDE "uart_interface_routines.psm"
+;*************************
+; Nexys4 I/O Functions
+;*************************
+
+;---------------------
+; DEB_rdbtns() - Reads the debounced pushbuttons
+;
+; Returns the 5 pushbuttons. The buttons are returned as follows
+; (assuming the inputs to the I/O interface matches this order)
+; example:
+;    bit  7    6      5        4        3        2        1         0
+;         r    r      r    btn_cntr  btn_left  btn_up  btn_right  btn_down
+;
+; where r = reserved. A value of 1 indicates that the button is pressed.  
+; A 0 indicates that the button is not pressed.
+;
+; Registers used s0
+;---------------------
+DEB_rdbtns:     INPUT       s0,     PA_READ_BUTTONS            ; read the buttons
+                AND         s0,     MSK_ALLBTNS         ; mask out unused bits
+                RETURN                              ; and return
+                
+                
+;---------------------
+; DEB_rdsw() - Reads the low order debounced switches
+;
+; Returns the  low order switches  [7:0]. The switches are returned as follows
+; example:
+;    bit  7    6    5   4    3    2    1    0
+;        sw7  sw6  sw5 sw4  sw3  sw2  sw1  sw0
+;
+; where r = reserved, sw7 is the leftmost switch and sw0 is the rightmost
+; switch. A value of 1 indicates that the switch is on (up).  A 0 indicates that
+; the switch is off (down).
+;
+; Registers used s0
+;---------------------
+DEB_rdsw:       INPUT       s0,     PA_READ_SWITCHES_7_0         ; read the slide switches
+                AND         s0,     MSK_ALLSW_LO        ; mask out unused bits
+                RETURN                              ; and return                
+
+                
+;---------------------
+; DEB_rdsw_hi() - Reads the high order debounced switches
+;
+; Returns the  high order switches  [15:8]. The switches are returned as follows
+; example:
+;    bit   7     6     5    4     3     2     1    0
+;        sw15  sw14  sw13 sw12  sw11  sw10  sw9  sw8
+;
+; where r = reserved, sw15 is the leftmost switch and sw7 is the rightmost
+; switch. A value of 1 indicates that the switch is on (up).  A 0 indicates that
+; the switch is off (down).
+;
+; Registers used s0
+;---------------------
+DEB_rdsw_hi:    INPUT       s0,     PA_READ_SWITCHES_15_8      ; read the slide switches
+                AND         s0,     MSK_ALLSW_HI        ; mask out unused bits
+                RETURN                              ; and return    
+                                
+;---------------------
+; LED_wrleds() - Write the low order 8 LEDs
+;
+; Writes the pattern in s1 to the rightmost 8 LEDs on the Nexys4
+;
+; Registers used s0, s1
+;---------------------
+LED_wrleds:     LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
+                AND         s0,     MSK_LEDS_LO         ; mask out unused bits
+                OUTPUT      s0,     PA_WRITE_LED_7_0;PA_LEDS             ; and write pattern to the LEDs 
+                RETURN                              ; and return    
+
+;---------------------
+; LED_wrleds_hi() - Write the high order 8 LEDs
+;
+; Writes the pattern in s1 to the lefmost 8 LEDs on the Nexys4
+;
+; Registers used s0, s1
+;---------------------
+LED_wrleds_hi:  LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
+                AND         s0,     MSK_LEDS_HI         ; mask out unused bits
+                OUTPUT      s0,     PA_WRITE_LED_15_8;PA_LEDS1508     ; and write pattern to the LEDs 
+                RETURN                              ; and return                                
+                
+
+; =========================
+; === Interrupt Handler ===
+; =========================
+ADDRESS 300
+isr:            STORE       s6,     SP_TEMP1            ;   save s6, s5
+                STORE       s5,     SP_TEMP2            ;
+                FETCH       s6,     SP_SEM              ;   fetch the semaphore
+                TEST        s6,     FF                  ;   if (SP_SEM == 0) {  // update system register values
+                JUMP        NZ,     isr_L0              ;   -- ZF == 0 says semaphore != 0
+                                                        ;       // no - get the data from the rojobot emulator
+
+                ADD         s6,     01                  ;       increment semaphore
+                STORE       s6,     SP_SEM              ;   }  // update system register values
+isr_L0:
+        
+        
+        
+                FETCH       s6,     SP_TEMP1            ;   restore s6, s5
+                FETCH       s5,     SP_TEMP2            ;
+                RETURNI         ENABLE              ;   and return from interrupt           
+
+; ========================
+; === Interrupt vector ===
+; ========================
+ADDRESS 3FF
+intvect:        JUMP    isr                         ; jump to interrupt service routine
+                
+                    
