@@ -1,17 +1,14 @@
-# LogicAnalyzer2
-Revisiting the logic analyzer project.
+#LogicaAnalyzer2: 5 Things
 
-LogicaAnalyzer2: 5 Things
-=========================
-
-Things will probably change
----------------------------
 
 Source Structure
 ----------------
 \LogicAnalyzer2\ClientA
+
 \LogicAnalyzer2\LogicCapture
+
 \LogicAnalyzer2\Kernel
+
 
 
 
