@@ -6,7 +6,7 @@
  * Possible states are idle, pre_trigger, and post_trigger. 
  */
 module AnalyzerControlFSM (
-    input clock,
+    input clk,
     input reset,
     // FSM Inputs
     input start,
@@ -27,7 +27,7 @@ localparam RUN_POSTTRIGGER = 2'b11;
 reg [1:0] state, nextState;
 
 // Sequential Logic
-always @(posedge clock) begin
+always @(posedge clk) begin
     if (reset) begin
         state <= IDLE;
     end else begin
