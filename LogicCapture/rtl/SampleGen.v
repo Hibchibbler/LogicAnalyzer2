@@ -1,16 +1,21 @@
 /* SampleGen.v - Module generates sample packets
- * to send to the memory interface.
+ * to send to the memory interface. A packet
+ * includes the data associated with the packet +
+ * the number of sample clock cycles since the
+ * last transition.
+ *
+ * Parameters -
+ *  SAMPLE_WIDTH              - The number of data channels
+ *  TRANSITION_COUNTER_WIDTH  - The width of the clocks_since_transition counter
+ *  MEMORY_CAPCITY            - Total number of bytes in the memory
+ *  MEMORY_WORD_WIDTH         - The number of bytes per data word in memory
+ *
  */
 module SampleGen #(
-    SAMPLE_WIDTH        = 8,
-    SAMPLE_PACKET_WIDTH = 16,
-    // MAX_SAMPLE_NUMBER is dependent on
-    // the memory being used. The sample
-    // number is used to convert to an address
-    // in memory, so it must be less than
-    // or equal to the number of sample packets
-    // that can fit in memory
-    MAX_SAMPLE_NUMBER   = 32'd8388607
+    parameter SAMPLE_WIDTH             = 16,
+    parameter TRANSITION_COUNTER_WIDTH = 16,
+    parameter MEMORY_CAPACITY          = 2**27,
+    parameter MEMORY_WORD_WIDTH        = 2
 ) (
     input clk,
     input reset,
@@ -25,22 +30,29 @@ module SampleGen #(
     output reg                           write_enable
 );
 
-localparam META_WIDTH          = SAMPLE_PACKET_WIDTH-SAMPLE_WIDTH;
-localparam MAX_SAMPLE_INTERVAL = {META_WIDTH{1'b1}};
+localparam SAMPLE_PACKET_WIDTH  = SAMPLE_WIDTH + TRANSITION_COUNTER_WIDTH;
+localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
+localparam NUM_WORDS_PER_PACKET = NUM_BYTES_PER_PACKET/MEMORY_WORD_WIDTH;
+localparam NUM_MEMORY_WORDS     = MEMORY_CAPACITY/MEMORY_WORD_WIDTH;
+localparam MAX_SAMPLE_INTERVAL  = {TRANSITION_COUNTER_WIDTH{1'b1}};
+localparam MAX_SAMPLE_NUMBER    = NUM_MEMORY_WORDS/NUM_WORDS_PER_PACKET-1;
 
-reg [META_WIDTH-1:0] last_transition_count;
+reg [TRANSITION_COUNTER_WIDTH-1:0] last_transition_count;
 
 always @(posedge clk) begin
     if (reset) begin
         write_enable          <= 1'b0;
         sample_number         <= 32'd0;
         samplePacket          <= {SAMPLE_PACKET_WIDTH{1'b0}};
-        last_transition_count <= {META_WIDTH{1'b0}};
+        last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
     end else begin
+                    $display("MEMORY CAP: %d", MEMORY_CAPACITY);
+                    $display("NUM MEMORY WORDS: %d", NUM_MEMORY_WORDS);
+                    $display("MAX SAMPLE: %d", MAX_SAMPLE_NUMBER);
         if (running) begin
             if (transition | (last_transition_count === MAX_SAMPLE_INTERVAL)) begin
                 samplePacket          <= {last_transition_count, sampleData};
-                last_transition_count <= {META_WIDTH{1'b0}};
+                last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
                 write_enable          <= 1'b1;
                 if (sample_number === MAX_SAMPLE_NUMBER) begin
                     sample_number <= 32'd0;
@@ -56,7 +68,7 @@ always @(posedge clk) begin
             sample_number         <= 32'd0;
             write_enable          <= 1'b0;
             samplePacket          <= {SAMPLE_PACKET_WIDTH{1'b0}};
-            last_transition_count <= {META_WIDTH{1'b0}};
+            last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
         end
     end
 end
