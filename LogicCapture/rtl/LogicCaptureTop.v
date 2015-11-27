@@ -60,8 +60,8 @@ reg [7:0] config8_reg;
 reg [7:0] config9_reg;
 
 // Assign the config registers
-assign start = config0[0];
-assign abort = config1[0];
+assign start = config0_reg[0];
+assign abort = config1_reg[0];
 // Note, this wont function correctly if input parameters
 // are changed from defaults
 assign desiredPattern       = {config3_reg, config2_reg};
