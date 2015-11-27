@@ -47,6 +47,7 @@ reg [SAMPLE_WIDTH-1:0] sampleData;
 // Save current and previous samples
 reg [SAMPLE_WIDTH-1:0] latestSample;
 reg [SAMPLE_WIDTH-1:0] previousSample;
+reg [31:0] triggerSampleNumber;
 
 wire preTrigger, postTrigger,idle;
 wire triggered,transition, complete;
@@ -74,6 +75,14 @@ reg [7:0] config6_reg;
 reg [7:0] config7_reg;
 reg [7:0] config8_reg;
 reg [7:0] config9_reg;
+reg [7:0] config10_reg;
+reg [7:0] config11_reg;
+reg [7:0] config12_reg;
+reg [7:0] config13_reg;
+reg [7:0] config14_reg;
+reg [7:0] config15_reg;
+reg [7:0] config16_reg;
+reg [7:0] config17_reg;
 
 // Assign the config registers
 assign start = config0_reg[0];
