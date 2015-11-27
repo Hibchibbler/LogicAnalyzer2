@@ -31,9 +31,14 @@ module LogicCaptureTop #(
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
 reg [SAMPLE_WIDTH-1:0] sampleData;
+// Save current and previous samples
+reg [SAMPLE_WIDTH-1:0] latestSample;
+reg [SAMPLE_WIDTH-1:0] previousSample;
 
-wire startBit;
-wire abortBit;
+wire preTrigger, postTrigger,idle;
+wire triggered,transition, complete;
+wire start;
+wire abort;
 
 wire [SAMPLE_WIDTH-1:0] desiredPattern;
 wire [SAMPLE_WIDTH-1:0] activeChannels;
@@ -55,17 +60,17 @@ reg [7:0] config8_reg;
 reg [7:0] config9_reg;
 
 // Assign the config registers
-assign startBit = config0[0];
-assign abortBit = config1[0];
+assign start = config0[0];
+assign abort = config1[0];
 // Note, this wont function correctly if input parameters
 // are changed from defaults
-assign desiredPattern       = {config3, config2};
-assign activeChannels       = {config5, config4};
-assign dontCareChannels     = {config7, config6};
-assign edgeChannel          = config8;
-assign patternTriggerEnable = config9[0];
-assign edgeTriggerEnable    = config9[1];
-assign edgeType             = config9[2];
+assign desiredPattern       = {config3_reg, config2_reg};
+assign activeChannels       = {config5_reg, config4_reg};
+assign dontCareChannels     = {config7_reg, config6_reg};
+assign edgeChannel          = config8_reg;
+assign patternTriggerEnable = config9_reg[0];
+assign edgeTriggerEnable    = config9_reg[1];
+assign edgeType             = config9_reg[2];
 
 
 always @(posedge clk) begin
@@ -102,10 +107,6 @@ always @(posedge clk) begin
     end
 end
 
-// Save current and previous samples
-reg [SAMPLE_WIDTH-1:0] latestSample;
-reg [SAMPLE_WIDTH-1:0] previousSample;
-
 always @(posedge clk) begin
     if (reset) begin
         latestSample   <= {SAMPLE_WIDTH{1'b0}};
@@ -117,7 +118,6 @@ always @(posedge clk) begin
 end
 
 // Trigger and Transition Detection
-wire triggered,transition;
 TriggerTransDetection #(
     .SAMPLE_WIDTH(SAMPLE_WIDTH)
 ) triggerModule (
@@ -133,23 +133,17 @@ TriggerTransDetection #(
     .desiredPattern(desiredPattern),
     .dontCareChannels(dontCareChannels)
 );
- 
-LogicCaptureControl #(
-    .SAMPLE_WIDTH(SAMPLE_WIDTH),
-    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH)
-) controlUnit (
+
+AnalyzerControlFSM controlFSM (
     .clk(clk),
     .reset(reset),
-    .triggerDetected(triggered),
-    .sampleTransistion(transition),
-    .sampleData(latestSample),
-    .edgeChannel(edgeChannel),
-    .edgeType(edgeType),
-    .edgeTriggerEnabled(edgeTriggerEnable),
-    .desiredPattern(desiredPattern),
-    .dontCareChannels(dontCareChannels),
-    .patternTriggerEnabled(patternTriggerEnable),
-    .activeChannels(activeChannels)
+    .start(start),
+    .sawTrigger(triggered),
+    .abort(abort),
+    .complete(complete),
+    .triggered(postTrigger),
+    .running(preTrigger),
+    .idle(idle)
 );
-
+ 
 endmodule
