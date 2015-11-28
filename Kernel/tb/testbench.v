@@ -49,7 +49,7 @@ uart_rx6 uart_rx
     .clk(clk),
     .buffer_reset(btnCpuReset),
     .en_16_x_baud(1'b1),
-    .serial_in(uart_txd),
+    .serial_in(uart_rxd),
     .buffer_read(urx_buffer_read),
 
     //Outputs
@@ -69,7 +69,7 @@ uart_tx6 uart_tx
     .buffer_write(utx_buffer_write),
 
     //Outputs
-    .serial_out(uart_rxd),
+    .serial_out(uart_txd),
     .buffer_full(utx_buffer_full),
     .buffer_half_full(utx_buffer_half_full),
     .buffer_data_present(utx_buffer_data_present)
