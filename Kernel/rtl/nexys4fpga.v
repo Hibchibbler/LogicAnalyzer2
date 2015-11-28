@@ -30,7 +30,10 @@ module nexys4fpga
     input  wire [15:0] sw,                     // switch inputs    
     output wire [15:0] led,                     // LED outputs   
     input  wire        uart_rxd,
-    output wire        uart_txd
+    output wire        uart_txd,
+    
+    input wire  [7:0]  JA,
+    input wire  [7:0]  JB
 );
     
     //General System
@@ -63,6 +66,27 @@ module nexys4fpga
     
     //UART Baud Generator
     wire       en_16_x_baud;
+    
+        //LogCap
+    wire [7:0] regIn0;
+    wire [7:0] regIn1;
+    wire [7:0] regIn2;
+    wire [7:0] regIn3;
+    wire [7:0] regIn4;
+    wire [7:0] regIn5;
+    wire [7:0] regIn6;
+    wire [7:0] regIn7;    
+    wire [7:0] regOut0;
+    wire [7:0] regOut1;
+    wire [7:0] regOut2;
+    wire [7:0] regOut3;
+    wire [7:0] regOut4;
+    wire [7:0] regOut5;
+    wire [7:0] regOut6;
+    wire [7:0] regOut7;    
+    wire       command_strobe;
+    wire [7:0] command;
+    wire [7:0] status;
     
     command_control cc
     (
@@ -120,7 +144,33 @@ module nexys4fpga
         .utx_buffer_half_full(utx_buffer_half_full),
         .utx_buffer_data_present(utx_buffer_data_present),
         //out
-        .utx_buffer_write(utx_buffer_write)
+        .utx_buffer_write(utx_buffer_write),
+        
+        
+        //LogCap
+        //i
+        .regIn0(regOut0),//Out from LogCap, Into Hub
+        .regIn1(regOut1),
+        .regIn2(regOut2),
+        .regIn3(regOut3),
+        .regIn4(regOut4),
+        .regIn5(regOut5),
+        .regIn6(regOut6),
+        .regIn7(regOut7),
+        //o
+        .regOut0(regIn0),//Out from Hub, Into LogCap
+        .regOut1(regIn1),
+        .regOut2(regIn2),
+        .regOut3(regIn3),
+        .regOut4(regIn4),
+        .regOut5(regIn5),
+        .regOut6(regIn6),
+        .regOut7(regIn7),        
+        //o
+        .command_strobe(command_strobe),
+        .command(command),        
+        //i
+        .status(status)                
     );
     
     
@@ -162,6 +212,43 @@ module nexys4fpga
         .buffer_half_full(utx_buffer_half_full),
         .buffer_data_present(utx_buffer_data_present)
     );    
+    
+    StubCaptureTop
+    #(
+        .SAMPLE_WIDTH(16),
+        .SAMPLE_PACKET_WIDTH(32)
+    )
+    sct
+    (
+        //i
+        .clk(clk),
+        .reset(sysreset),
+        .sampleData_async({JA, JB}),
+        
+        //i
+        .regIn0(regIn0),
+        .regIn1(regIn1),
+        .regIn2(regIn2),
+        .regIn3(regIn3),
+        .regIn4(regIn4),
+        .regIn5(regIn5),
+        .regIn6(regIn6),
+        .regIn7(regIn7),
+        //o
+        .regOut0(regOut0),
+        .regOut1(regOut1),
+        .regOut2(regOut2),
+        .regOut3(regOut3),
+        .regOut4(regOut4),
+        .regOut5(regOut5),
+        .regOut6(regOut6),
+        .regOut7(regOut7),
+        //i  
+        .command_strobe(command_strobe),
+        .command(command),
+        //o
+        .status(status)              
+    );
             
     
 endmodule
