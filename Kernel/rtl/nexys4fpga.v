@@ -21,7 +21,8 @@
 
 
 
-module nexys4fpga (
+module nexys4fpga
+(
 	input  wire        clk,                 
     input  wire        btnW, btnE,             // pushbutton inputs - left (db_btns[4])and right (db_btns[2])
     input  wire        btnN, btnS,             // pushbutton inputs - up (db_btns[3]) and down (db_btns[1])
@@ -35,6 +36,7 @@ module nexys4fpga (
     input wire  [7:0]  JA,
     input wire  [7:0]  JB
 );
+    parameter TB_MODE = 0;
     
     //General System
     wire        sysreset;
@@ -52,13 +54,13 @@ module nexys4fpga (
     wire       interrupt_ack;
     
     // UART
-    wire [7:0] data_out;
+    wire [7:0] data_rx;
     wire       urx_buffer_full;
     wire       urx_buffer_half_full;
     wire       urx_buffer_data_present;
     wire       urx_buffer_read;
     
-    wire [7:0] data_in;
+    wire [7:0] data_tx;
     wire       utx_buffer_full;
     wire       utx_buffer_half_full;
     wire       utx_buffer_data_present;
@@ -66,6 +68,9 @@ module nexys4fpga (
     
     //UART Baud Generator
     wire       en_16_x_baud;
+    wire       uart_baud;
+    
+    assign uart_baud = TB_MODE ? 1'b1 : en_16_x_baud;
     
         //LogCap
     wire [7:0] regIn0;
@@ -128,7 +133,7 @@ module nexys4fpga (
         
         //UART Rxd
         //in
-        .data_out(data_out),
+        .data_rx(data_rx),
         //in
         .urx_buffer_full(urx_buffer_full),
         .urx_buffer_half_full(urx_buffer_half_full),
@@ -138,7 +143,7 @@ module nexys4fpga (
         
         //UART Txd
         //out
-        .data_in(data_in),
+        .data_tx(data_tx),
         //in
         .utx_buffer_full(utx_buffer_full),
         .utx_buffer_half_full(utx_buffer_half_full),
@@ -185,17 +190,13 @@ module nexys4fpga (
     (
         //Inputs
         .clk(clk),
-        .buffer_reset(sysreset),       
-`ifdef TB_MODE
-        .en_16_x_baud(1'b1),
-`else
-        .en_16_x_baud(en_16_x_baud),
-`endif
+        .buffer_reset(sysreset), 
+        .en_16_x_baud(uart_baud),
         .serial_in(uart_rxd),
         .buffer_read(urx_buffer_read),
         
         //Outputs
-        .data_out(data_out),
+        .data_out(data_rx),
         .buffer_full(urx_buffer_full),
         .buffer_half_full(urx_buffer_half_full),
         .buffer_data_present(urx_buffer_data_present)
@@ -206,12 +207,8 @@ module nexys4fpga (
         //Inputs
         .clk(clk),
         .buffer_reset(sysreset),
-`ifdef TB_MODE
-        .en_16_x_baud(1'b1),
-`else
-        .en_16_x_baud(en_16_x_baud),
-`endif
-        .data_in(data_in),
+        .en_16_x_baud(uart_baud),
+        .data_in(data_tx),
         .buffer_write(utx_buffer_write),        
         
         //Outputs

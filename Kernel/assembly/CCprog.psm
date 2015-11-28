@@ -205,16 +205,16 @@ Test1:
     
     JUMP TestFinish
 Test2:
-    FETCH   s6,     SP_SEM  
-    COMPARE s6,     00      
-    JUMP    Z,      main_L0 
+    ;FETCH   s6,     SP_SEM  
+    ;COMPARE s6,     00      
+    ;JUMP    Z,      main_L0 
     
     CALL HelloWorldTransmitTest
     
     
-    FETCH   s6,             SP_SEM
-    SUB     s6,             01
-    STORE   s6,             SP_SEM 
+    ;FETCH   s6,             SP_SEM
+    ;SUB     s6,             01
+    ;STORE   s6,             SP_SEM 
     
     JUMP TestFinish
 Test3:
