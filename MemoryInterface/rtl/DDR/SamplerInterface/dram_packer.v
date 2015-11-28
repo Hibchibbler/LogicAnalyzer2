@@ -46,7 +46,7 @@ module dram_packer #(
 );
 
 localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
-localparam NUM_WORDS_PER_PACKET = NUM_BYTES_PER_PACKET/MEMORY_WORD_WIDTH;
+localparam NUM_WORDS_PER_PACKET = NUM_BYTES_PER_PACKET/MEMORY_WORD_WIDTH; //2
 
 localparam PACK_SIZE  = MEM_IF_WIDTH/SAMPLE_PACKET_WIDTH;
 localparam MAX_PACK   = PACK_SIZE*2;
@@ -55,7 +55,9 @@ localparam BUFF_WIDTH = MEM_IF_WIDTH*2;
 // Ensures address be will always be multiples of 8.
 reg [31:0] capturedSampleNum;
 localparam SAMPLE_MASK_WIDTH = 3;
-assign dram_adx = {capturedSampleNum[31:SAMPLE_MASK_WIDTH]*NUM_WORDS_PER_PACKET, 3'b000};
+wire [31:0] capturedSampleMod;
+assign capturedSampleMod = capturedSampleNum*NUM_WORDS_PER_PACKET;
+assign dram_adx = {capturedSampleMod[31:SAMPLE_MASK_WIDTH], {SAMPLE_MASK_WIDTH{1'b0}}};
 
 reg [8:0] flushCount;
 reg [8:0] packCount;
@@ -109,13 +111,13 @@ end
 
 always @(posedge clk) begin
     if (~resetn) begin
-        dBuff        <= 0;
-        dramSendFlag <= 0;
-        packCount    <= 0;
-        flushCount   <= 0;
-        buffSelect   <= 0;
-        dram_data    <= 0;
-        go           <= 1'b0;
+        dBuff             <= 0;
+        dramSendFlag      <= 0;
+        packCount         <= 0;
+        flushCount        <= 0;
+        buffSelect        <= 0;
+        dram_data         <= 0;
+        go                <= 1'b0;
         capturedSampleNum <= 32'd0;
     end else begin
         if (we) begin
@@ -131,7 +133,7 @@ always @(posedge clk) begin
                 flushCount   <= 4'b1;
                 buffSelect   <= ~buffSelect;
                 go           <= 1'b1;
-                capturedSampleNum <= sample_num;
+                capturedSampleNum <= sample_num - 1;
             end else begin
                 go <= 1'b0;
                 capturedSampleNum <= capturedSampleNum;
