@@ -9,31 +9,37 @@ module LogicCaptureTop #(
 ) (
     input  clk,
     input  reset,
-    input  [SAMPLE_WIDTH-1:0] sampleData_async,
     
-    input  [7:0]      config0,
-    input  [7:0]      config1,
-    input  [7:0]      config2,
-    input  [7:0]      config3,
-    input  [7:0]      config4,
-    input  [7:0]      config5,
-    input  [7:0]      config6,
-    input  [7:0]      config7,
-    input  [7:0]      config8,
-    input  [7:0]      config9,
-    input  [7:0]      config10,
-    input  [7:0]      config11,
-    input  [7:0]      config12,
-    input  [7:0]      config13,
-    input  [7:0]      config14,
-    input  [7:0]      config15,
-    input  [7:0]      config16,
-    input  [7:0]      config17,
-    output [7:0]      status,
-    output reg [7:0] traceData_0,
-    output reg [7:0] traceData_1,
-    output reg [7:0] traceData_2,
-    output reg [7:0] traceData_3,
+    // Asynchronous sample data input
+    input  [SAMPLE_WIDTH-1:0]       sampleData_async,
+    
+    // Communication interface to HUB
+    // 8 Input Registers
+    input wire [7:0]                regIn0,
+    input wire [7:0]                regIn1,
+    input wire [7:0]                regIn2,
+    input wire [7:0]                regIn3,
+    input wire [7:0]                regIn4,
+    input wire [7:0]                regIn5,
+    input wire [7:0]                regIn6,
+    input wire [7:0]                regIn7,
+    
+    // 8 Output Registers
+    output reg [7:0]                regOut0,
+    output reg [7:0]                regOut1,
+    output reg [7:0]                regOut2,
+    output reg [7:0]                regOut3,
+    output reg [7:0]                regOut4,
+    output reg [7:0]                regOut5,
+    output reg [7:0]                regOut6,
+    output reg [7:0]                regOut7,
+    
+    // Command input from HUB
+    input wire [7:0]                command,
+    input wire                      command_strobe,
+    
+    // Special output - status register
+    output     [7:0]                status
     
     // Interface to memory
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
@@ -41,112 +47,108 @@ module LogicCaptureTop #(
     output [31:0]                    sample_number
 );
 
+localparam  CMD_NOP                 = 8'h00,
+            CMD_START               = 8'h01,
+            CMD_ABORT               = 8'h02,
+            CMD_TRIGGER_CONFIGURE   = 8'h03,
+            CMD_BUFFER_CONFIGURE    = 8'h04,
+            CMD_READ_TRACE_DATA     = 8'h05;
+
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
 reg [SAMPLE_WIDTH-1:0] sampleData;
-// Save current and previous samples
-reg [SAMPLE_WIDTH-1:0] latestSample;
-reg [SAMPLE_WIDTH-1:0] previousSample;
-reg [31:0] triggerSampleNumber;
 
-wire preTrigger, postTrigger,idle;
-wire triggered,transition, complete;
-wire running;
-wire start;
-wire abort;
+reg start;
+reg abort;
 
-wire [31:0] maxSampleCount;
-wire [31:0] preTriggerSampleCount;
-wire [SAMPLE_WIDTH-1:0] desiredPattern;
-wire [SAMPLE_WIDTH-1:0] activeChannels;
-wire [SAMPLE_WIDTH-1:0] dontCareChannels;
-wire [7:0] edgeChannel;
-wire patternTriggerEnable;
-wire edgeTriggerEnable;
-wire edgeType;
+/* Local Configuration Registers */
+/* - Buffer Configuration - */
+reg [31:0]             maxSampleCount;
+reg [31:0]             preTriggerSampleCount;
+reg [SAMPLE_WIDTH-1:0] activeChannels;
 
-reg [7:0] config0_reg;
-reg [7:0] config1_reg;
-reg [7:0] config2_reg;
-reg [7:0] config3_reg;
-reg [7:0] config4_reg;
-reg [7:0] config5_reg;
-reg [7:0] config6_reg;
-reg [7:0] config7_reg;
-reg [7:0] config8_reg;
-reg [7:0] config9_reg;
-reg [7:0] config10_reg;
-reg [7:0] config11_reg;
-reg [7:0] config12_reg;
-reg [7:0] config13_reg;
-reg [7:0] config14_reg;
-reg [7:0] config15_reg;
-reg [7:0] config16_reg;
-reg [7:0] config17_reg;
-
-// Assign the config registers
-assign start = config0_reg[0];
-assign abort = config1_reg[0];
-// Note, this wont function correctly if input parameters
-// are changed from defaults
-assign desiredPattern        = {config3_reg, config2_reg};
-assign activeChannels        = {config5_reg, config4_reg};
-assign dontCareChannels      = {config7_reg, config6_reg};
-assign edgeChannel           = config8_reg;
-assign patternTriggerEnable  = config9_reg[0];
-assign edgeTriggerEnable     = config9_reg[1];
-assign edgeType              = config9_reg[2];
-assign maxSampleCount        = {config13,config12,config11,config10};
-assign preTriggerSampleCount = {config17,config16,config15,config14};
-
-assign running = preTrigger | postTrigger;
-
-always @(posedge clk) begin
-    if (reset) begin
-        config0_reg  <= 8'h00;
-        config1_reg  <= 8'h00;
-        config2_reg  <= 8'h00;
-        config3_reg  <= 8'h00;
-        config4_reg  <= 8'h00;
-        config5_reg  <= 8'h00;
-        config6_reg  <= 8'h00;
-        config7_reg  <= 8'h00;
-        config8_reg  <= 8'h00;
-        config9_reg  <= 8'h00;
-        config10_reg <= 8'h00;
-        config11_reg <= 8'h00;
-        config12_reg <= 8'h00;
-        config13_reg <= 8'h00;
-        config14_reg <= 8'h00;
-        config15_reg <= 8'h00;
-        config16_reg <= 8'h00;
-        config17_reg <= 8'h00;
-    end else begin
-        config0_reg  <= config0;
-        config1_reg  <= config1;
-        config2_reg  <= config2;
-        config3_reg  <= config3;
-        config4_reg  <= config4;
-        config5_reg  <= config5;
-        config6_reg  <= config6;
-        config7_reg  <= config7;
-        config8_reg  <= config8;
-        config9_reg  <= config9;
-        config10_reg <= config10;
-        config11_reg <= config11;
-        config12_reg <= config12;
-        config13_reg <= config13;
-        config14_reg <= config14;
-        config15_reg <= config15;
-        config16_reg <= config16;
-        config17_reg <= config17;
-    end
-end
+/* - Trigger Configuration - */
+reg [SAMPLE_WIDTH-1:0] desiredPattern;
+reg [SAMPLE_WIDTH-1:0] dontCareChannels;
+reg                    patternTriggerEnable;
+reg [7:0]              edgeChannel;
+reg                    edgeType;
+reg                    edgeTriggerEnable;
 
 // assign the status register
 assign status = {5'b00000, postTrigger, preTrigger, idle};
 
-// Synchronize sample inputs
+always @(posedge clk) begin
+    if (reset == 1'b1) begin
+        desiredPattern        <= {SAMPLE_WIDTH{1'b0}};
+        activeChannels        <= {SAMPLE_WIDTH{1'b0}};
+        dontCareChannels      <= {SAMPLE_WIDTH{1'b0}};
+        edgeChannel           <= 32'd0;
+        patternTriggerEnable  <= 1'b0;
+        edgeTriggerEnable     <= 1'b0;
+        edgeType              <= 1'b0;
+        currentCommand        <= CMD_NOP;
+        maxSampleCount        <= 32'd0;
+        preTriggerSampleCount <= 32'd0;
+    end else begin
+        if (command_strobe) begin
+            case (command)
+                CMD_START: currentCommand    <= CMD_START;
+                CMD_ABORT: currentCommand    <= CMD_ABORT;
+                CMD_TRIGGER_CONFIGURE: begin
+                    currentCommand           <= CMD_TRIGGER_CONFIGURE;
+                    desiredPattern           <= {regIn1, regIn0};
+                    activeChannels           <= {regIn3, regIn2};
+                    dontCareChannels         <= {regIn5, regIn4};
+                    edgeChannel              <= regIn6;
+                    patternTriggerEnable     <= regIn7[0];
+                    edgeTriggerEnable        <= regIn7[1];
+                    edgeType                 <= regIn7[2];
+                end
+                CMD_BUFFER_CONFIGURE: begin
+                    currentCommand           <= CMD_BUFFER_CONFIGURE;
+                    maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
+                    preTriggerSampleCount    <= {regIn7, regIn6, regIn5, regIn4};
+                end
+                CMD_READ_TRACE_DATA: begin
+                    currentCommand           <= CMD_READ_TRACE_DATA;
+                    regOut0                  <= 8'hAA;//data we are uploading....
+                    regOut1                  <= 8'hBB;
+                    regOut2                  <= 8'hCC;
+                    regOut3                  <= 8'hDD;
+                    regOut4                  <= 8'hAA;
+                    regOut5                  <= 8'hBB;
+                    regOut6                  <= 8'hCC;
+                    regOut7                  <= 8'hDD;
+                end
+                default: begin
+                    currentCommand           <= CMD_NOP;
+                end
+            endcase
+        end else begin
+            currentCommand                   <= CMD_NOP;
+        end
+    end
+end
+
+// Handle setting and clearing start/abort bits
+always @(posedge clk) begin
+    if (reset) begin
+        start <= 1'b0;
+        abort <= 1'b0;
+    end else begin
+        case(currentCommand)
+            CMD_START: start <= 1'b1;
+            CMD_ABORT: abort <= 1'b1
+            default:   begin
+                         start <= 1'b0;
+                         abort <= 1'b0;
+                       end
+        endcase
+    end
+end
+
+// Synchronize sample inputs to this clock domain
 always @(posedge clk) begin
         sampleData_sync0 <= sampleData_async;
         sampleData_sync1 <= sampleData_sync0;
@@ -154,54 +156,28 @@ always @(posedge clk) begin
     end
 end
 
-always @(posedge clk) begin
-    if (reset) begin
-        latestSample   <= {SAMPLE_WIDTH{1'b0}};
-        previousSample <= {SAMPLE_WIDTH{1'b0}};
-    end else begin
-        latestSample   <= sampleData;
-        previousSample <= latestSample;
-    end
-end
-
-// Trigger and Transition Detection
-TriggerTransDetection #(
-    .SAMPLE_WIDTH(SAMPLE_WIDTH)
-) triggerModule (
-    .latestSample(latestSample),
-    .previousSample(previousSample),
-    .triggered(triggered),
-    .transition(transition),
-    .activeChannels(activeChannels),
-    .edgeChannel(edgeChannel),
-    .edgeType(edgeType),
-    .edgeTriggerEnabled(edgeTriggerEnable),
-    .patternTriggerEnabled(patternTriggerEnable),
+LogCap #(
+    .SAMPLE_WIDTH(SAMPLE_WIDTH),
+    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH)
+) ilogcap (
+    .clk(clk),
+    .reset(reset),
+    .sampleData(sampleData),
+    .maxSampleCount(maxSampleCount),
+    .preTriggerSampleCount(preTriggerSampleCount),
     .desiredPattern(desiredPattern),
-    .dontCareChannels(dontCareChannels)
-);
-
-AnalyzerControlFSM controlFSM (
-    .clk(clk),
-    .reset(reset),
+    .activeChannels(activeChannels),
+    .dontCareChannels(dontCareChannels),
+    .edgeChannel(edgeChannel),
+    .patternTriggerEnable(patternTriggerEnable),
+    .edgeTriggerEnable(edgeTriggerEnable),
+    .edgeType(edgeType),
     .start(start),
-    .sawTrigger(triggered),
     .abort(abort),
-    .complete(complete),
-    .triggered(postTrigger),
-    .running(preTrigger),
-    .idle(idle)
-);
-
-SampleGen sampleGen(
-    .clk(clk),
-    .reset(reset),
-    .running(running),
-    .transition(transition),
-    .sampleData(latestSample),
+    .status(status),
     .samplePacket(samplePacket),
-    .sample_number(sample_number),
-    .write_enable(write_enable)
+    .write_enable(write_enable),
+    .sample_number(sample_number)
 );
  
 endmodule
