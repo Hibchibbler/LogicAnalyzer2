@@ -4,7 +4,7 @@ module traffic_chain_tb;
     
     /************************ PARAMETERS  *************************/
     parameter CLOCK_PERIOD_IN  = 10000;  // 10000 ps - 100 MHz base clock.
-    parameter RESET_PERIOD     = 20000; // 20000 ps reset delay
+    parameter RESET_PERIOD     = 20000; //  20000 ps reset delay
     
     // Some parameters for proper instantiation of DDR FBM
     localparam MEMORY_WIDTH    = 16;
@@ -33,7 +33,6 @@ module traffic_chain_tb;
     
     /************************ WIRE/REG Declarations *************************/
     // CLOCKS
-    wire soc_clk; // clock output from controller
     reg  pad_clk; // clock from clocking wizard
     // Generate source clock
     initial pad_clk = 1'b0;
@@ -41,24 +40,12 @@ module traffic_chain_tb;
     
     // RESETS
     reg  pad_resetn; // Low true reset from system
-    wire soc_resetn; // low true reset inversion of ui_clk_reset
     // Generate soc reset
     initial begin
         pad_resetn = 1'b0;
         #RESET_PERIOD pad_resetn = 1'b1;
     end
     
-    // INTERCONNECT
-      // traffic gen to req_receiving
-      wire read_allowed;
-      wire write_allowed;
-      wire reads_pending;
-      wire writes_pending;
-      wire write_req;
-      wire read_req;
-      wire [127:0] tr_wr_data;
-      wire [26:0]  tr_adx;
-      
       // DDR Memory Wires
       // memory model - signals into BFM, delayed version of *fpga
       wire [DQ_WIDTH-1:0]                ddr2_dq_sdram;
@@ -94,31 +81,47 @@ module traffic_chain_tb;
       reg  [DM_WIDTH-1:0]                ddr2_dm_sdram_tmp;
       reg  [ODT_WIDTH-1:0]               ddr2_odt_sdram_tmp;
       wire                               init_calib_complete;
-      
-      // From traffic gen to dispatch - need to factor this out
-      wire mode;
-      
-      // interconnect between receiving and consumer
-    
+          
     /************************ END WIRE/REG DECLARATIONS *********************/
-    wire [127:0] return_data;
-    wire [26:0]  return_adx;
-    wire         has_return_data;
-    wire         get_return_data;
+
     
-    localparam TRAFFIC_GEN_DELAY = 80000000;
+    reg [15:0] sampleData;
+    reg [4:0] flipCount;
+    always @(posedge pad_clk) begin
+        if (~pad_resetn) begin
+            flipCount <= 0;
+        end else begin
+            flipCount <= flipCount + 1;
+        end
+    end
+    always @(posedge pad_clk) begin
+        if (~pad_resetn) begin
+                sampleData <= 16'd0;
+        end else begin
+            if (flipCount == 5'b11111) begin
+                sampleData <= $random;
+            end else begin
+                sampleData <= sampleData;
+            end
+        end
+    end
+
+    localparam TRAFFIC_GEN_DELAY = RESET_PERIOD*2;
     reg traffic_gen_enable;
     initial begin
         traffic_gen_enable = 1'b0;
+        #(100*RESET_PERIOD) traffic_gen_enable = 1'b0; 
         #TRAFFIC_GEN_DELAY traffic_gen_enable = 1'b1;
+        #(CLOCK_PERIOD_IN*2) traffic_gen_enable = 1'b0;
     end
     
     wire [15:0] sw;
-    assign sw = {14'b00000000000000, traffic_gen_enable};
-    
+    assign sw = {15'b00000000000000, traffic_gen_enable};
+        
     nexys4fpga top (
         .clk(pad_clk),
         .btnCpuReset(pad_resetn),
+        .sampleData_async(sampleData),
         .sw(sw),
         // DDR2 Pins
         .ddr2_dq(ddr2_dq_fpga),
@@ -135,17 +138,6 @@ module traffic_chain_tb;
         .ddr2_cs_n(ddr2_cs_n_fpga),
         .ddr2_dm(ddr2_dm_fpga),
         .ddr2_odt(ddr2_odt_fpga)
-    );
-    
-    
-    // Dummy consumer to pull off data from the read buffer
-    consumer read_consumer (
-        .clk(soc_clk),
-        .resetn(soc_resetn),
-        .return_data(return_data),
-        .return_adx(return_adx),
-        .has_return_data(has_return_data),
-        .get_return_data(get_return_data)
     );
     
  // Intantiate the Bus Functional Model of DDR2 memory + Wire Delay modeling

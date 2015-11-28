@@ -3,7 +3,8 @@
 module nexys4fpga (
 	input 				clk,         // 100MHz clock from on-board oscillator
 	input				btnCpuReset, // red pushbutton input -> db_btns[0]
-	input	[15:0]		sw,          // switch inputs		
+	input	[15:0]		sw,          // switch inputs
+    input   [15:0]      sampleData_async,
 
     // DDR Interface
     inout   [15:0]      ddr2_dq,
@@ -36,9 +37,7 @@ wire        app_rdy;
 wire        app_wdf_rdy;
 /************************/
 
-wire traffic_go;
-
-wire clk_mig, clk_ila;
+wire clk_mig;
 wire soc_clk, soc_resetn;
 // traffic gen to req_receiving
 wire read_allowed;
@@ -47,64 +46,97 @@ wire reads_pending;
 wire writes_pending;
 wire write_req;
 wire read_req;
+assign read_req = 1'b0;
 
 wire mode;
+assign mode = 1'b0;
 
 wire has_return_data;
 wire get_return_data;
 wire [127:0] return_data;
-wire [26:0] return_adx;
+wire [26:0]  return_adx;
 
 wire we;
-wire [15:0] sample_data;
+reg  [15:0] sampleData;
+reg  [15:0] sampleData_sync0;
+reg  [15:0] sampleData_sync1;
+wire [31:0] samplePacket;
 wire [31:0] sample_num;
 
 wire [127:0] tr_wr_data;
-wire [26:0] tr_adx;
-wire [26:0] rd_adx;
+wire [26:0]  tr_adx;
+wire [26:0]  rd_adx;
 
-assign traffic_go = sw[0];
+wire [7:0] status;
 
-clk_wiz_0 clkgen (
-    .clk_in1(clk),
-    .clk_mig(clk_mig),
-    .clk_ila(clk_ila)
-);
 
-consumer dummy_consumer (
+
+wire [15:0] activeChannels;
+wire [7:0]  edgeChannel;
+wire        edgeType;
+wire        edgeTriggerEnable;
+wire        patternTriggerEnable;
+wire [15:0] desiredPattern;
+wire [15:0] dontCareChannels;
+
+assign activeChannels       = 16'hffff;
+assign edgeChannel          = 3;
+assign edgeType             = 1;
+assign edgeTriggerEnable    = 1;
+assign patternTriggerEnable = 0;
+assign dontCareChannels     = 16'hffff;
+assign desiredPattern       = 16'h0000;
+
+wire [31:0] preTriggerSampleCount;
+wire [31:0] maxSampleCount;
+
+assign maxSampleCount = 100;
+assign preTriggerSampleCount = 30;
+
+wire   abort;
+assign abort = 0;
+
+assign start = sw[0];
+assign rd_adx = 27'd0;
+
+// Synchronize sample inputs to this clock domain
+always @(posedge soc_clk) begin
+    sampleData_sync0 <= sampleData_async;
+    sampleData_sync1 <= sampleData_sync0;
+    sampleData       <= sampleData_sync1;
+end
+
+LogCap ilogcap (
     .clk(soc_clk),
-    .resetn(soc_resetn),
-    .has_return_data(has_return_data),
-    .get_return_data(get_return_data),
-    .return_data(return_data),
-    .return_adx(return_adx)
-);
-
-sampler_stub sampler (
-    .clk(soc_clk),
-    .resetn(soc_resetn),
-    .enable(traffic_go),
-    .sample_num(sample_num),
-    .sample(sample_data),
-    .we(we),
-    .read_req(read_req),
-    .adx(rd_adx),
-    .mode(mode),
-    .reads_pending(reads_pending),
-    .read_allowed(read_allowed),
-    .writes_pending(writes_pending)
+    .reset(~soc_resetn),
+    .sampleData(sampleData),
+    .maxSampleCount(maxSampleCount),
+    .preTriggerSampleCountMax(preTriggerSampleCount),
+    .desiredPattern(desiredPattern),
+    .activeChannels(activeChannels),
+    .dontCareChannels(dontCareChannels),
+    .edgeChannel(edgeChannel),
+    .patternTriggerEnable(patternTriggerEnable),
+    .edgeTriggerEnable(edgeTriggerEnable),
+    .edgeType(edgeType),
+    .start(start),
+    .abort(abort),
+    .status(status),
+    .samplePacket(samplePacket),
+    .write_enable(we),
+    .sample_number(sample_num)
 );
 
 dram_packer data_packer (
     .clk(soc_clk),
     .resetn(soc_resetn),
     .we(we),
-    .write_data(sample_data),
+    .write_data(samplePacket),
     .sample_num(sample_num),
     .dram_data(tr_wr_data),
     .dram_adx(tr_adx),
     .write_req(write_req),
-    .write_allowed(write_allowed)
+    .write_allowed(1'b1)
 );
 
 ddr_memory_interface ddr_if(
@@ -157,35 +189,19 @@ ddr_memory_interface ddr_if(
     .app_wdf_rdy(app_wdf_rdy)
 );
 
-ila_0 la (
-    .clk(clk_ila),
-    .probe0(traffic_go),
-    .probe1(mode),
-    .probe2(we),
-    .probe3(reads_pending),
-    .probe4(read_req),
-    .probe5(writes_pending),
-    .probe6(read_allowed),
-    .probe7(sample_num),
-    .probe8(sample_data),
-    .probe9(write_req),
-    .probe10(tr_adx),
-    .probe11(tr_wr_data),
-    .probe12(rd_adx),
-    .probe13(return_data),
-    .probe14(return_adx),
-    .probe15(has_return_data),
-    .probe16(get_return_data),
-    .probe17(app_addr),
-    .probe18(app_cmd[0]),
-    .probe19(app_en),
-    .probe20(app_wdf_data),
-    .probe21(app_wdf_end),
-    .probe22(app_wdf_wren),
-    .probe23(app_rd_data),
-    .probe24(app_rd_data_valid),
-    .probe25(app_rdy),
-    .probe26(app_wdf_rdy)
+consumer dummy_consumer (
+    .clk(soc_clk),
+    .resetn(soc_resetn),
+    .has_return_data(has_return_data),
+    .get_return_data(get_return_data),
+    .return_data(return_data),
+    .return_adx(return_adx)
+);
+
+clk_wiz_0 clkgen (
+    .clk_in1(clk),
+    .clk_mig(clk_mig),
+    .clk_ila(clk_ila)
 );
 
 endmodule
