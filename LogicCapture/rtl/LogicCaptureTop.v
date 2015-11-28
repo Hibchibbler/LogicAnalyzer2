@@ -64,7 +64,7 @@ reg abort;
 /* Local Configuration Registers */
 /* - Buffer Configuration - */
 reg [31:0]             maxSampleCount;
-reg [31:0]             preTriggerSampleCount;
+reg [31:0]             preTriggerSampleCountMax;
 reg [SAMPLE_WIDTH-1:0] activeChannels;
 
 /* - Trigger Configuration - */
@@ -89,7 +89,7 @@ always @(posedge clk) begin
         edgeType              <= 1'b0;
         currentCommand        <= CMD_NOP;
         maxSampleCount        <= 32'd0;
-        preTriggerSampleCount <= 32'd0;
+        preTriggerSampleCountMax <= 32'd0;
     end else begin
         if (command_strobe) begin
             case (command)
@@ -108,7 +108,7 @@ always @(posedge clk) begin
                 CMD_BUFFER_CONFIGURE: begin
                     currentCommand           <= CMD_BUFFER_CONFIGURE;
                     maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
-                    preTriggerSampleCount    <= {regIn7, regIn6, regIn5, regIn4};
+                    preTriggerSampleCountMax    <= {regIn7, regIn6, regIn5, regIn4};
                 end
                 CMD_READ_TRACE_DATA: begin
                     currentCommand           <= CMD_READ_TRACE_DATA;
@@ -163,7 +163,7 @@ LogCap #(
     .reset(reset),
     .sampleData(sampleData),
     .maxSampleCount(maxSampleCount),
-    .preTriggerSampleCount(preTriggerSampleCount),
+    .preTriggerSampleCountMax(preTriggerSampleCountMax),
     .desiredPattern(desiredPattern),
     .activeChannels(activeChannels),
     .dontCareChannels(dontCareChannels),
