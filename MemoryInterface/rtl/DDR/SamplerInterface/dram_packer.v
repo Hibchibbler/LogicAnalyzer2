@@ -125,15 +125,7 @@ always @(posedge clk) begin
             packCount  <= packCount + 1'b1;
             flushCount <= flushCount + 1;
             if (pageFull) begin
-                if (buffSelect) begin
-                    dram_data <= dBuff[BUFF_WIDTH-1 -: MEM_IF_WIDTH];
-                end else begin
-                    dram_data <= dBuff[MEM_IF_WIDTH-1 -: MEM_IF_WIDTH];
-                end
-                flushCount   <= 4'b1;
-                buffSelect   <= ~buffSelect;
-                go           <= 1'b1;
-                capturedSampleNum <= sample_num - 1;
+                transferPage;
             end else begin
                 go <= 1'b0;
                 capturedSampleNum <= capturedSampleNum;
@@ -142,10 +134,30 @@ always @(posedge clk) begin
                 packCount <= 0;
             end
         end else begin
-            capturedSampleNum <= capturedSampleNum;
-            go                <= 1'b0;
+            if (pageFull) begin
+                transferPage;
+            end else begin
+                capturedSampleNum <= capturedSampleNum;
+                go                <= 1'b0;
+            end
         end
     end
 end
+
+// Kicks off the state machine to send off the currently
+// filled page of data to the memory interface
+task transferPage;
+  begin
+    if (buffSelect) begin
+        dram_data <= dBuff[BUFF_WIDTH-1 -: MEM_IF_WIDTH];
+    end else begin
+        dram_data <= dBuff[MEM_IF_WIDTH-1 -: MEM_IF_WIDTH];
+    end
+    flushCount        <= 4'b1;
+    buffSelect        <= ~buffSelect;
+    go                <= 1'b1;
+    capturedSampleNum <= sample_num - 1;
+  end
+endtask
 
 endmodule
