@@ -20,8 +20,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module nexys4fpga
-(
+
+module nexys4fpga (
 	input  wire        clk,                 
     input  wire        btnW, btnE,             // pushbutton inputs - left (db_btns[4])and right (db_btns[2])
     input  wire        btnN, btnS,             // pushbutton inputs - up (db_btns[3]) and down (db_btns[1])
@@ -173,20 +173,24 @@ module nexys4fpga
         .status(status)                
     );
     
-    
+`ifndef TB_MODE
    uart_baud_gen ubg
    (
         .clk(clk),
         .reset(sysreset),
         .en_16_x_baud(en_16_x_baud)
    );
-            
+`endif
     uart_rx6 urx
     (
         //Inputs
         .clk(clk),
-        .buffer_reset(sysreset),        
+        .buffer_reset(sysreset),       
+`ifdef TB_MODE
+        .en_16_x_baud(1'b1),
+`else
         .en_16_x_baud(en_16_x_baud),
+`endif
         .serial_in(uart_rxd),
         .buffer_read(urx_buffer_read),
         
@@ -202,7 +206,11 @@ module nexys4fpga
         //Inputs
         .clk(clk),
         .buffer_reset(sysreset),
-        .en_16_x_baud(en_16_x_baud),        
+`ifdef TB_MODE
+        .en_16_x_baud(1'b1),
+`else
+        .en_16_x_baud(en_16_x_baud),
+`endif
         .data_in(data_in),
         .buffer_write(utx_buffer_write),        
         
