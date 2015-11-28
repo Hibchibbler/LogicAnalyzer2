@@ -14,9 +14,6 @@ module fifo_to_app (
     input clk,
     input resetn,
     
-    // read = 0, write = 1
-    input mode,
-    
     // From ddr_fifo
     input         has_wr_data,
     input         has_wr_adx,
@@ -41,6 +38,41 @@ module fifo_to_app (
 );
 
 localparam READ_MODE = 1'b1, WRITE_MODE = 1'b0;
+
+// mode selects which dispatch unit is
+// able to dispatch commands (either read or write).
+// The arbitration here is selfish for it's current state.
+// In other words: if the current mode is write mode, and there are
+// pending write requests, the mode will stay locked in
+// write mode until there are no more write requests, even
+// if read requests come. The same behaviour occurs
+// for read requests. If mode is currently read mode,
+// and there are pending read requests, the mode will stay locked
+// in read mode until there are no more read requests.
+reg mode;
+always @(posedge clk) begin
+    if (~resetn) begin
+        mode = WRITE_MODE;
+    end else begin
+        if (mode === WRITE_MODE) begin
+            if (has_wr_adx | has_wr_data) begin
+                mode <= WRITE_MODE;
+            end else if (~(has_wr_adx | has_wr_data) & has_rd_req) begin
+                mode <= READ_MODE;
+            end else begin
+                mode <= WRITE_MODE;
+            end
+        end else begin // READ MODE
+            if (has_rd_req) begin
+                mode <= READ_MODE;
+            end else if (~has_rd_req & (has_wr_adx | has_wr_data)) begin
+                mode <= WRITE_MODE;
+            end else begin
+                mode <= READ_MODE;
+            end
+        end
+    end
+end
 
 wire [26:0] wr_address_out;
 wire wr_app_en, wr_app_wdf_end, wr_app_wdf_wren;
@@ -69,6 +101,7 @@ end
 fifo_to_app_wr  i_f2a_wr (
     .clk(clk),
     .resetn(resetn),
+    .mode(mode),
     
     // From ddr_fifo
     .has_wr_data(has_wr_data),
@@ -96,6 +129,7 @@ fifo_to_app_wr  i_f2a_wr (
 fifo_to_app_rd i_f2a_rd (
     .clk(clk),
     .resetn(resetn),
+    .mode(mode),
     
     .read_adx_in(rd_adx_in),
     .has_rd_req(has_rd_req),

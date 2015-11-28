@@ -9,6 +9,8 @@ module fifo_to_app_rd (
     input clk,
     input resetn,
     
+    input mode,
+    
     input [26:0] read_adx_in,
     input        has_rd_req,
     output reg   get_rd_adr,
@@ -39,7 +41,7 @@ end
 
 always @(*) begin
     case(state)
-        IDLE: if (has_rd_req) begin
+        IDLE: if (has_rd_req & mode) begin
                 nextState = SEND;
               end else begin
                 nextState = IDLE;
@@ -65,7 +67,7 @@ always @(*) begin
     get_rd_adr   = 1'b0;
     case(state)
         IDLE: begin
-                get_rd_adr = has_rd_req;
+                get_rd_adr = has_rd_req & mode;
               end
         SEND: begin
                 address_out = read_adx_in;

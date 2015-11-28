@@ -9,6 +9,8 @@ module fifo_to_app_wr (
     input clk,
     input resetn,
     
+    input mode,
+    
     // From ddr_fifo
     input has_wr_data,
     input has_wr_adx,
@@ -58,7 +60,7 @@ always @(*) begin
     dNextState = IDLE;
     case(dState)
         IDLE:     begin
-                    if (has_wr_data) begin
+                    if (has_wr_data & ~mode) begin
                         dNextState = CHUNK1;
                     end else begin
                         dNextState = IDLE;
@@ -92,7 +94,7 @@ always @(*) begin
     get_wr_data    = 1'b0;
     write_data_out = 64'hFFFFFFFFFFFFFFFF;
     case(dState)
-        IDLE:    get_wr_data  = has_wr_data;
+        IDLE:    get_wr_data  = has_wr_data & ~mode;
         CHUNK1:  begin
                     app_wdf_wren = 1'b1;
                     write_data_out = write_data_in[63:0];
@@ -111,7 +113,7 @@ always @(*) begin
     aNextState = IDLE;
     case(aState)
         IDLE:     begin
-                    if (has_wr_adx) begin
+                    if (has_wr_adx & ~mode) begin
                         aNextState = CHUNK1;
                     end else begin
                         aNextState = IDLE;
@@ -137,7 +139,7 @@ always @(*) begin
     app_en      = 1'b0;
     address_out = 27'b111111111111111111111111111;
     case(aState)
-        IDLE:       get_wr_adx = has_wr_adx;
+        IDLE:       get_wr_adx = has_wr_adx & ~mode;
         CHUNK1: begin
                   app_en = 1'b1;
                   address_out = {address_in[26:3], 3'b000};

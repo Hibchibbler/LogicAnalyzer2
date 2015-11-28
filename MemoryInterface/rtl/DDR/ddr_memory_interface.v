@@ -28,7 +28,6 @@ module ddr_memory_interface (
     input         read_req,       // Read Command Request
     output        read_allowed,   // High of read req  is allowed
     output        reads_pending,  // High if there are reads still pending
-    input         mode,           // Annoying signal - needs to go away
     
     // Return Read Data
     output [127:0] rd_data_return,  // Read data returned from DDR2
@@ -152,10 +151,6 @@ ddr_fifo req_receiving (
 fifo_to_app req_dispatch (
     .clk(soc_clk),
     .resetn(soc_resetn),
-    
-    // From traffic gen - need to make this
-    // go away...
-    .mode(mode),
     
     // to/from FIFO
     .has_wr_data(disp_has_wr_data),

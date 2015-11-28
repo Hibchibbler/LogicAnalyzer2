@@ -48,9 +48,6 @@ wire write_req;
 wire read_req;
 assign read_req = 1'b0;
 
-wire mode;
-assign mode = 1'b0;
-
 wire has_return_data;
 wire get_return_data;
 wire [127:0] return_data;
@@ -162,7 +159,6 @@ ddr_memory_interface ddr_if(
     .read_req(read_req),            // Read Command Request
     .read_allowed(read_allowed),    // High of read req  is allowed
     .reads_pending(reads_pending),  // High if there are reads still pending
-    .mode(mode), // Annoying signal - needs to go away
     // Return Read Data
     .rd_data_return(return_data),      // Read data returned from DDR2
     .rd_adx_return(return_adx),        // Address associated with return data
