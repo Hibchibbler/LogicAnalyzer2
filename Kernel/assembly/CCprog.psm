@@ -158,7 +158,8 @@ main_L0:                                ;   while(1) {  // main loop is an infin
 TestChooser:
 
 
-    INPUT s1, PA_READ_SWITCHES_7_0
+    ;INPUT s1, PA_READ_SWITCHES_7_0
+    INPUT s1, PA_READ_UART_DATA
     COMPARE s1, 01
     JUMP Z, Test1
     COMPARE s1, 02

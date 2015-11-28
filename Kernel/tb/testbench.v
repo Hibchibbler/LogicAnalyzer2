@@ -29,6 +29,8 @@ wire       utx_buffer_full;
 wire       utx_buffer_half_full;
 wire       utx_buffer_data_present;
 
+integer i;
+
 initial begin
     clk = 1'b0;
     {btnW, btnE, btnN, btnS, btnC} = 5'h00;
@@ -47,7 +49,7 @@ uart_rx6 uart_rx
 (
     //Inputs
     .clk(clk),
-    .buffer_reset(btnCpuReset),
+    .buffer_reset(~btnCpuReset),
     .en_16_x_baud(1'b1),
     .serial_in(uart_rxd),
     .buffer_read(urx_buffer_read),
@@ -63,7 +65,7 @@ uart_tx6 uart_tx
 (
     //Inputs
     .clk(clk),
-    .buffer_reset(btnCpuReset),
+    .buffer_reset(~btnCpuReset),
     .en_16_x_baud(1'b1),
     .data_in(data_tx),
     .buffer_write(utx_buffer_write),
@@ -92,28 +94,24 @@ nexys4fpga #(.TB_MODE(1)) target
     .JB(JB)
 );
 
+
+// UART READS
 // assert urx_buffer_read any time data is present
 always @(urx_buffer_data_present) urx_buffer_read = urx_buffer_data_present;
-
 // print any uart data coming out of the nexys4fpga
-always @(data_rx) $display("UART data out: %s", data_rx);
+always @(posedge urx_buffer_read) $display("%5d UART data out: %s", $time, data_rx);
 
 initial begin
     // reset the system
     #5   btnCpuReset = `RESET;
     #100 btnCpuReset = ~`RESET;
+
+    //for (i=0; i<100; i=i+1)
+    #10 write_uart(8'h02);
     
-    // latest version of CCprog looks for something on sw[1] - drive this to get it to output "HELLO World"
-    #10     sw[1] = 1'b1;
-    #10000  sw[1] = 1'b0;
-    
-    // send it something, apparently it needs a little nudge to get going
-    //#10 write_uart(8'h11);
-    // wait a long time - let FPGA do its thing for a while, should see "HELLO WORLD" come out on UART
-    //#1000000;
-    
-    // stop simulation
-    //$finish;
+    // takes a total of ~22uS to get the full "HELLO World" back
+    #22000;
+    $finish;
 end
 
 task write_uart;
