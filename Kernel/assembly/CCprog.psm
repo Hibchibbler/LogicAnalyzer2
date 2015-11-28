@@ -104,8 +104,8 @@ CONSTANT PA_READ_LOGCAP_REGISTER7,  07
 CONSTANT PA_READ_LOGCAP_STATUS,     08
 CONSTANT PA_READ_UART_DATA,         09
 CONSTANT PA_READ_UART_STATUS,       0A
-CONSTANT PA_READ_SWITCHES_15_8,     0B
-CONSTANT PA_READ_SWITCHES_7_0,      0C
+CONSTANT PA_READ_SWITCHES_7_0,      0B
+CONSTANT PA_READ_SWITCHES_15_8,     0C
 CONSTANT PA_READ_BUTTONS,           0D
 
 
@@ -156,6 +156,8 @@ main_L0:                                ;   while(1) {  // main loop is an infin
     ; COMPARE s6,     00                  ;
     ; JUMP    Z,      main_L0             ;
 TestChooser:
+
+
     INPUT s1, PA_READ_SWITCHES_7_0
     COMPARE s1, 01
     JUMP Z, Test1
@@ -203,7 +205,17 @@ Test1:
     
     JUMP TestFinish
 Test2:
+    FETCH   s6,     SP_SEM  
+    COMPARE s6,     00      
+    JUMP    Z,      main_L0 
+    
     CALL HelloWorldTransmitTest
+    
+    
+    FETCH   s6,             SP_SEM
+    SUB     s6,             01
+    STORE   s6,             SP_SEM 
+    
     JUMP TestFinish
 Test3:
        
