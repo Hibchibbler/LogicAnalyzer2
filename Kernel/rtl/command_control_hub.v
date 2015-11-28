@@ -19,14 +19,14 @@ module  command_control_hub
     input  wire       read_strobe,
     
     //UART Receive
-    input  wire [7:0] data_out,
+    input  wire [7:0] data_rx,
     input  wire       urx_buffer_full,
     input  wire       urx_buffer_half_full,
     input  wire       urx_buffer_data_present,
     output reg        urx_buffer_read,
     
     //UART Transmit
-    output wire [7:0] data_in,
+    output wire [7:0] data_tx,
     input  wire       utx_buffer_full,
     input  wire       utx_buffer_half_full,
     input  wire       utx_buffer_data_present,
@@ -130,7 +130,7 @@ module  command_control_hub
     
     //UART Writes - combinationally
     assign utx_buffer_write =  write_strobe && (port_id == PA_WRITE_UART_DATA);
-    assign data_in = port_out;    
+    assign data_tx = port_out;    
     
 
     //General Reads
@@ -145,7 +145,7 @@ module  command_control_hub
             PA_READ_LOGCAP_REGISTER6:  port_in <= regIn6;
             PA_READ_LOGCAP_REGISTER7:  port_in <= regIn7;
             PA_READ_LOGCAP_STATUS:     port_in <= status;
-            PA_READ_UART_DATA:         port_in <= data_out;
+            PA_READ_UART_DATA:         port_in <= data_rx;
             PA_READ_UART_STATUS:       port_in <= {2'b00, 
                                                    urx_buffer_full,
                                                    urx_buffer_half_full,
