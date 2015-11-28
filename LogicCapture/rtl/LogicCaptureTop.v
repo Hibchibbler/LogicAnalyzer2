@@ -150,10 +150,9 @@ end
 
 // Synchronize sample inputs to this clock domain
 always @(posedge clk) begin
-        sampleData_sync0 <= sampleData_async;
-        sampleData_sync1 <= sampleData_sync0;
-        sampleData       <= sampleData_sync1;
-    end
+    sampleData_sync0 <= sampleData_async;
+    sampleData_sync1 <= sampleData_sync0;
+    sampleData       <= sampleData_sync1;
 end
 
 LogCap #(
