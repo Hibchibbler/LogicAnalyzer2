@@ -124,7 +124,7 @@ always @(posedge clk) begin
                 flushCount   <= 4'b1;
                 buffSelect   <= ~buffSelect;
                 go           <= 1'b1;
-                capturedSampleNum <= sample_num-1;
+                capturedSampleNum <= sample_num;
             end else begin
                 go <= 1'b0;
                 capturedSampleNum <= capturedSampleNum;
