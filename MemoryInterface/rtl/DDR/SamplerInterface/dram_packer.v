@@ -32,14 +32,17 @@ module dram_packer #(
     input clk,
     input resetn,
     
-    input we,
+    // Connectivity to LogCap
+    input                           we,
     input [SAMPLE_PACKET_WIDTH-1:0] write_data,
-    input [31:0] sample_num,
+    input [31:0]                    sample_num,
+    output reg                      pageFull,
     
-    output reg [MEM_IF_WIDTH-1:0] dram_data,
-    output     [ADX_WIDTH-1:0]  dram_adx,
-    output reg write_req,
-    input write_allowed
+    // Connectivity to memory interface
+    output reg [MEM_IF_WIDTH-1:0]   dram_data,
+    output     [ADX_WIDTH-1:0]      dram_adx,
+    output reg                      write_req,
+    input                           write_allowed
 );
 
 localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
@@ -59,6 +62,10 @@ reg [8:0] packCount;
 reg [BUFF_WIDTH-1:0] dBuff;
 reg dramSendFlag;
 reg buffSelect;
+
+always @(*) begin
+    pageFull = flushCount === PACK_SIZE;
+end
 
 localparam IDLE = 1'b0, SENDING = 1'b1;
 reg go;
@@ -115,7 +122,7 @@ always @(posedge clk) begin
             dBuff[packCount*SAMPLE_PACKET_WIDTH+SAMPLE_PACKET_WIDTH-1 -: SAMPLE_PACKET_WIDTH] <= write_data;
             packCount  <= packCount + 1'b1;
             flushCount <= flushCount + 1;
-            if (flushCount === PACK_SIZE) begin
+            if (pageFull) begin
                 if (buffSelect) begin
                     dram_data <= dBuff[BUFF_WIDTH-1 -: MEM_IF_WIDTH];
                 end else begin
@@ -134,7 +141,7 @@ always @(posedge clk) begin
             end
         end else begin
             capturedSampleNum <= capturedSampleNum;
-            go <= 1'b0;
+            go                <= 1'b0;
         end
     end
 end

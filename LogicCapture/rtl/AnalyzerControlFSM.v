@@ -13,6 +13,7 @@ module AnalyzerControlFSM (
     input abort,
     input sawTrigger,
     input complete,
+    input pageFull,
     // FSM Outputs
     output reg post_trigger,  // Sampling, pre trigger
     output reg pre_trigger,    // Sampling, post trigger
@@ -25,6 +26,13 @@ localparam RUN_PRETRIGGER  = 2'b10;
 localparam RUN_POSTTRIGGER = 2'b11;
 
 reg [1:0] state, nextState;
+
+// We want to hold delay real abort while sampling
+// if in the middle of a page of samples
+reg abortSignal;
+always @(*) begin
+    abortSignal = abort & pageFull;
+end
 
 // Sequential Logic
 always @(posedge clk) begin
@@ -55,7 +63,7 @@ begin
                                 nextState = START_DELAY;
                          end
         RUN_PRETRIGGER:  begin
-                            if(abort)
+                            if(abortSignal)
                                 nextState = IDLE;
                             else if(sawTrigger)
                                 nextState = RUN_POSTTRIGGER;
@@ -63,7 +71,7 @@ begin
                                 nextState = RUN_PRETRIGGER;
                          end
         RUN_POSTTRIGGER: begin
-                            if (abort | complete)
+                            if (abortSignal | complete)
                                 nextState = IDLE;
                             else
                                 nextState = RUN_POSTTRIGGER;
@@ -72,8 +80,7 @@ begin
 end
 
 // Output Combinational Logic
-always @*
-begin
+always @(*) begin
     // Set defaults
     post_trigger = 0;
     pre_trigger  = 0;

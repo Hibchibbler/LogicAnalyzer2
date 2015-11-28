@@ -68,8 +68,7 @@ wire [26:0]  tr_adx;
 wire [26:0]  rd_adx;
 
 wire [7:0] status;
-
-
+wire pageFull;
 
 wire [15:0] activeChannels;
 wire [7:0]  edgeChannel;
@@ -93,8 +92,11 @@ wire [31:0] maxSampleCount;
 assign maxSampleCount = 100;
 assign preTriggerSampleCount = 30;
 
-wire   abort;
-assign abort = 0;
+reg   abort;
+initial begin
+    abort = 1'b0;
+    #5000000 abort = 1'b1;
+end
 
 assign start = sw[0];
 assign rd_adx = 27'd0;
@@ -105,6 +107,8 @@ always @(posedge soc_clk) begin
     sampleData_sync1 <= sampleData_sync0;
     sampleData       <= sampleData_sync1;
 end
+
+wire idle, preTrigger, postTrigger;
 
 LogCap ilogcap (
     .clk(soc_clk),
@@ -121,10 +125,13 @@ LogCap ilogcap (
     .edgeType(edgeType),
     .start(start),
     .abort(abort),
-    .status(status),
+    .idle(idle),
+    .preTrigger(preTrigger),
+    .postTrigger(postTrigger),
     .samplePacket(samplePacket),
     .write_enable(we),
-    .sample_number(sample_num)
+    .sample_number(sample_num),
+    .pageFull(pageFull)
 );
 
 dram_packer data_packer (
@@ -136,7 +143,8 @@ dram_packer data_packer (
     .dram_data(tr_wr_data),
     .dram_adx(tr_adx),
     .write_req(write_req),
-    .write_allowed(1'b1)
+    .write_allowed(1'b1),
+    .pageFull(pageFull)
 );
 
 ddr_memory_interface ddr_if(

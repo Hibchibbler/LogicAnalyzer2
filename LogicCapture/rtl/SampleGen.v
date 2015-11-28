@@ -4,6 +4,11 @@
  * the number of sample clock cycles since the
  * last transition.
  *
+ * The module is also responsible for calculating and
+ * outputting sample numbers that correspond to the
+ * first sample in the trace, the last sample in the trace
+ * and the sample that caused a trigger.
+ *
  * Parameters -
  *  SAMPLE_WIDTH              - The number of data channels
  *  SAMPLE_PACKET_WIDTH       - The width of the packets to memory
@@ -155,7 +160,7 @@ always @(posedge clk) begin
         sampleNum_Trig       <= 32'd0;
         capturedSampleCount  <= 32'd0;
     end else begin
-        if (complete | abort) begin
+        if ((complete | abort) & running) begin
             sampleNum_End       <= sample_number;
             sampleNum_Trig      <= triggerSampleNumber;
             capturedSampleCount <= totalSamplesTaken;
@@ -169,7 +174,11 @@ end
 
 // Various calculations on sample numbers
 always @(*) begin
-    sampleNum_Begin       = sampleNum_End - capturedSampleCount + 1;
+    if ((sampleNum_End - capturedSampleCount + 1) >= 0) begin
+        sampleNum_Begin = sampleNum_End - capturedSampleCount + 1;
+    end else begin
+        sampleNum_Begin = sampleNum_End - capturedSampleCount + 1 + MAX_SAMPLE_NUMBER;
+    end
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
     if (postTrigger) begin

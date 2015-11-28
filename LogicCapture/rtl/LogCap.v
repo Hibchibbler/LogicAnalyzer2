@@ -16,7 +16,10 @@ module LogCap #(
     input edgeType,
     input start,
     input abort,
-    output     [7:0]                 status,
+    input pageFull,
+    output     idle,
+    output     preTrigger,
+    output     postTrigger,
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output                           write_enable,
     output [31:0]                    sample_number,
@@ -28,10 +31,7 @@ module LogCap #(
 reg [SAMPLE_WIDTH-1:0] latestSample;
 reg [SAMPLE_WIDTH-1:0] previousSample;
 
-wire postTrigger, preTrigger, idle;
 wire triggered, transition, complete;
-
-assign status = {5'b00000, postTrigger, preTrigger, idle};
 
 // Capture sample data values
 always @(posedge clk) begin
@@ -69,6 +69,7 @@ AnalyzerControlFSM controlFSM (
     .complete(complete),
     .post_trigger(postTrigger),
     .pre_trigger(preTrigger),
+    .pageFull(pageFull),
     .idle(idle)
 );
 

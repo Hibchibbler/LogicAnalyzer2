@@ -44,7 +44,8 @@ module LogicCaptureTop #(
     // Interface to memory
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output                           write_enable,
-    output [31:0]                    sample_number
+    output [31:0]                    sample_number,
+    input                            pageFull
 );
 
 localparam  CMD_NOP                 = 8'h00,
@@ -52,7 +53,10 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_ABORT               = 8'h02,
             CMD_TRIGGER_CONFIGURE   = 8'h03,
             CMD_BUFFER_CONFIGURE    = 8'h04,
-            CMD_READ_TRACE_DATA     = 8'h05;
+            CMD_READ_TRACE_DATA     = 8'h05,
+            CMD_READ_TRACE_SIZE     = 8'h06,
+            CMD_READ_TRIGGER_SAMP   = 8'h07,
+            CMD_GOT_DATA            = 8'h08;
 
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
@@ -75,6 +79,7 @@ reg [7:0]              edgeChannel;
 reg                    edgeType;
 reg                    edgeTriggerEnable;
 
+wire postTrigger,preTrigger,idle;
 // assign the status register
 assign status = {5'b00000, postTrigger, preTrigger, idle};
 
@@ -141,8 +146,18 @@ always @(posedge clk) begin
             CMD_START: start <= 1'b1;
             CMD_ABORT: abort <= 1'b1
             default:   begin
+                         // Hold abort until
+                         // in the idle state
+                         if (abort) begin
+                            if (idle) begin
+                                abort <= 1'b0;
+                            end else begin
+                                abort <= 1'b1;
+                            end
+                         end else ebgin
+                            abort <= 1'b0;
+                         end
                          start <= 1'b0;
-                         abort <= 1'b0;
                        end
         endcase
     end
@@ -171,12 +186,16 @@ LogCap #(
     .patternTriggerEnable(patternTriggerEnable),
     .edgeTriggerEnable(edgeTriggerEnable),
     .edgeType(edgeType),
+    .postTrigger(postTrigger),
+    .preTrigger(preTrigger),
+    .idle(idle),
     .start(start),
     .abort(abort),
     .status(status),
     .samplePacket(samplePacket),
     .write_enable(write_enable),
-    .sample_number(sample_number)
+    .sample_number(sample_number),
+    .pageFull(pageFull)
 );
  
 endmodule
