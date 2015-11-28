@@ -6,14 +6,14 @@
  *
  * Parameters -
  *  SAMPLE_WIDTH              - The number of data channels
- *  TRANSITION_COUNTER_WIDTH  - The width of the clocks_since_transition counter
+ *  SAMPLE_PACKET_WIDTH       - The width of the packets to memory
  *  MEMORY_CAPCITY            - Total number of bytes in the memory
  *  MEMORY_WORD_WIDTH         - The number of bytes per data word in memory
  *
  */
 module SampleGen #(
     parameter SAMPLE_WIDTH             = 16,
-    parameter TRANSITION_COUNTER_WIDTH = 16,
+    parameter SAMPLE_PACKET_WIDTH      = 32,
     parameter MEMORY_CAPACITY          = 2**27,
     parameter MEMORY_WORD_WIDTH        = 2
 ) (
@@ -30,7 +30,7 @@ module SampleGen #(
     output reg                           write_enable
 );
 
-localparam SAMPLE_PACKET_WIDTH  = SAMPLE_WIDTH + TRANSITION_COUNTER_WIDTH;
+localparam TRANSITION_COUNTER_WIDTH = SAMPLE_PACKET_WIDTH - SAMPLE_WIDTH;
 localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
 localparam NUM_WORDS_PER_PACKET = NUM_BYTES_PER_PACKET/MEMORY_WORD_WIDTH;
 localparam NUM_MEMORY_WORDS     = MEMORY_CAPACITY/MEMORY_WORD_WIDTH;
@@ -46,9 +46,6 @@ always @(posedge clk) begin
         samplePacket          <= {SAMPLE_PACKET_WIDTH{1'b0}};
         last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
     end else begin
-                    $display("MEMORY CAP: %d", MEMORY_CAPACITY);
-                    $display("NUM MEMORY WORDS: %d", NUM_MEMORY_WORDS);
-                    $display("MAX SAMPLE: %d", MAX_SAMPLE_NUMBER);
         if (running) begin
             if (transition | (last_transition_count === MAX_SAMPLE_INTERVAL)) begin
                 samplePacket          <= {last_transition_count, sampleData};

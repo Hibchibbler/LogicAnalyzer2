@@ -75,9 +75,9 @@ end
 always @*
 begin
     // Set defaults
-    triggered = 0;
-    running   = 0;
-    idle      = 0;
+    post_trigger = 0;
+    pre_trigger  = 0;
+    idle         = 0;
     case(state)
         IDLE:            idle         = 1;
         RUN_PRETRIGGER:  pre_trigger  = 1;
