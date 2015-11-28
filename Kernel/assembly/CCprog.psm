@@ -78,102 +78,159 @@ CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
 CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
 CONSTANT    SP_TEMP2,       22      ;
 
-CONSTANT    SP_ERR_STATE,   25
-
 ; Output Port Addresses
-CONSTANT PA_WRITE_HUB_REGISTER0, 00 
-CONSTANT PA_WRITE_HUB_REGISTER1, 01
-CONSTANT PA_WRITE_HUB_REGISTER2, 02
-CONSTANT PA_WRITE_HUB_REGISTER3, 03
-CONSTANT PA_WRITE_HUB_REGISTER4, 04
-CONSTANT PA_WRITE_HUB_REGISTER5, 05
-CONSTANT PA_WRITE_HUB_REGISTER6, 06
-CONSTANT PA_WRITE_HUB_REGISTER7, 07
-CONSTANT PA_WRITE_LOGCAP,        08
-
-CONSTANT PA_WRITE_UART_DATA,     09
-CONSTANT PA_WRITE_LED_7_0,       0A
-CONSTANT PA_WRITE_LED_15_8,      0B
+CONSTANT PA_WRITE_LOGCAP_REGISTER0, 00 
+CONSTANT PA_WRITE_LOGCAP_REGISTER1, 01
+CONSTANT PA_WRITE_LOGCAP_REGISTER2, 02
+CONSTANT PA_WRITE_LOGCAP_REGISTER3, 03
+CONSTANT PA_WRITE_LOGCAP_REGISTER4, 04
+CONSTANT PA_WRITE_LOGCAP_REGISTER5, 05
+CONSTANT PA_WRITE_LOGCAP_REGISTER6, 06
+CONSTANT PA_WRITE_LOGCAP_REGISTER7, 07
+CONSTANT PA_WRITE_LOGCAP_COMMAND,   08
+CONSTANT PA_WRITE_UART_DATA,        09
+CONSTANT PA_WRITE_LED_7_0,          0A
+CONSTANT PA_WRITE_LED_15_8,         0B
 
 ; Input Port Addresses
-CONSTANT PA_READ_HUB_REGISTER0,  00 
-CONSTANT PA_READ_HUB_REGISTER1,  01
-CONSTANT PA_READ_HUB_REGISTER2,  02
-CONSTANT PA_READ_HUB_REGISTER3,  03
-CONSTANT PA_READ_HUB_REGISTER4,  04
-CONSTANT PA_READ_HUB_REGISTER5,  05
-CONSTANT PA_READ_HUB_REGISTER6,  06
-CONSTANT PA_READ_HUB_REGISTER7,  07
-                                ;08 missing on purpose
-CONSTANT PA_READ_UART_DATA,      09
-CONSTANT PA_READ_UART_STATUS,    0A
-CONSTANT PA_READ_SWITCHES_15_8,  0B
-CONSTANT PA_READ_SWITCHES_7_0,   0C
-CONSTANT PA_READ_BUTTONS,        0D
+CONSTANT PA_READ_LOGCAP_REGISTER0,  00 
+CONSTANT PA_READ_LOGCAP_REGISTER1,  01
+CONSTANT PA_READ_LOGCAP_REGISTER2,  02
+CONSTANT PA_READ_LOGCAP_REGISTER3,  03
+CONSTANT PA_READ_LOGCAP_REGISTER4,  04
+CONSTANT PA_READ_LOGCAP_REGISTER5,  05
+CONSTANT PA_READ_LOGCAP_REGISTER6,  06
+CONSTANT PA_READ_LOGCAP_REGISTER7,  07
+CONSTANT PA_READ_LOGCAP_STATUS,     08
+CONSTANT PA_READ_UART_DATA,         09
+CONSTANT PA_READ_UART_STATUS,       0A
+CONSTANT PA_READ_SWITCHES_15_8,     0B
+CONSTANT PA_READ_SWITCHES_7_0,      0C
+CONSTANT PA_READ_BUTTONS,           0D
 
-; --------- UARTs -------------------
-; Read UART Data
-; Read UART Status
-; Write UART Data
-; Signal UART Reset Command
-; --------- Nexys4 IO Peripherals ---
-; Write LEDs
-; Read Buttons
-; Read Switches
+
+; LogCap Commands
+CONSTANT CMD_LOGCAP_START,          01
+CONSTANT CMD_LOGCAP_ABORT,          02
+CONSTANT CMD_LOGCAP_CONF_TRIG,      03
+CONSTANT CMD_LOGCAP_CONF_BUFF,      04
+CONSTANT CMD_LOGCAP_DUMP,           05
+
 ; --------- Logic Capture -----------
-
 ;
-; Write to Hub Register [0-7]   - Output Port [0-7] 
-; Signal LogCap To Do Something - Output Port 8
-; Read from Hub Register [0-7]  - Input  Port [0-7] 
+; Write to LogCap Register [0-7]   - Output Port [0-7] 
+; Write LogCap Command - Output Port 8
+; Read from LogCap Register [0-7]  - Input  Port [0-7] 
 ;
-; To Do Something?
-; 00 - Signal LogCap To Read Trigger Settings From Hub Registers
-; 01 - Signal LogCap to Read Channel Settings From Hub Registers
-; 02 - Signal LogCap to Read Buffer Settings From Hub Registers
-; 03 - Signal LogCap to Read Acquisition Settings From Hub Registers
-; 04 - Signal LogCap to Write Trace Statistics To Hub Registers
-; 05 - Signal LogCap To Write Hardware Status To Hub Registers
-;
-; With these we :
-;  1) write trigger settings (up to 8 bytes)
-;  to registers in the hub. Then we Signal LogCap to Read
-;  the registers in the hub, and to interpret it as trigger settings
-;
-;  2) Signal LogCap to write Status of the hardware, or the size of the trace data.
-;  Then C&C reads the hub registers, and interprets the data accordingly.
+; Commands
+;    01 - Signal LogCap to Start
+;    02 - Signal LogCap to Abort
+;    03 - Signal LogCap To Read Trigger Settings From input LogCap Registers
+;    04 - Signal LogCap to Read Buffer Settings From input LogCap Registers
+;    05 - Signal LogCap to Write Trace Statistics To output LogCap Registers
 
 
 ; ===============
 ; === main()  ===
 ; ===============
-
 ADDRESS 000
     JUMP    main                        ; workaround to avoid location 3 corruption
     JUMP    main                        ; by Vivado Hardware Manager.  Bug was flagged by
     JUMP    main                        ; Ken Chapman and is known to be in 2014.2
     JUMP    main                        ; Address 003 can be corrupted by Vivado HW manager
                                                     ;
-main:           
-
+main:
+           
     LOAD    s1,     00                  ; clear the semaphore
     STORE   s1,     SP_SEM              ;
 
-    LOAD    s5,     00
-    STORE   s5,     SP_ERR_STATE
     ENABLE  INTERRUPT                   ; get the ball rolling
                             
 
 ; ==================
 ; === Main  Loop ===
 ; ==================
-                                                    ;   while(1) {  // main loop is an infinite loop
-main_L0:
-    FETCH   s6,     SP_SEM              ;       while (SP_SEMA == 0)  {}   // loop until isr updates rojobot registers
-    COMPARE s6,     00              ;
-    JUMP    Z,      main_L0             ;
+                                                    
+main_L0:                                ;   while(1) {  // main loop is an infinite loop
+    ; FETCH   s6,     SP_SEM              ;       while (SP_SEMA == 0)  {}   // loop until isr updates rojobot registers
+    ; COMPARE s6,     00                  ;
+    ; JUMP    Z,      main_L0             ;
+TestChooser:
+    INPUT s1, PA_READ_SWITCHES_7_0
+    COMPARE s1, 01
+    JUMP Z, Test1
+    COMPARE s1, 02
+    JUMP Z, Test2
+    COMPARE s1, 04
+    JUMP Z, Test3
+    COMPARE s1, 08
+    JUMP Z, Test4
+    JUMP TestFinish
+Test1:
+    ;Write LogCap Command Abort
+    ;Read Status
+    ; Assert Status == Idle
+        
+    ;Write Trigger Configuration to LogCap Registers
+    ;Write LogCap Command ConfTrig
+    ;
+    ;Write Buffer Configuration to LogCap Registers
+    ;Write LogCap Command ConfBuf
+    ;
+    ;Read Status
+    ;   Assert Status == Idle
+    ;
+    ;Write LogCap Command Start
+    ;Read Status
+    ;   Assert Status == Idle --> PreTrigger --> PostTrigger --> Idle
+    ;
+    ;Write Trace Statistics
+    ;Delay
+    ;Read Byte0 from LogCap Registers
+    ;Read Byte1 from LogCap Registers
+    ;...
+    ;Read Byte7 from LogCap Registers
+    ;
+    ;For (page = 0;page < TraceStatistic.TotalPages;++page){
+    ;   Write LogCap Command Dump
+    ;   Delay
+    ;   Read Byte0 from LogCap Registers
+    ;   Read Byte1 from LogCap Registers
+    ;   ...
+    ;   Read Byte7 from LogCap Registers
+    ;}
     
     
+    JUMP TestFinish
+Test2:
+    CALL HelloWorldTransmitTest
+    JUMP TestFinish
+Test3:
+       
+    JUMP TestFinish
+Test4:
+       
+    JUMP TestFinish
+TestFinish:
+    
+
+
+
+    
+    
+    
+    ; FETCH   s6,             SP_SEM
+    ; SUB     s6,             01          ;       decrement semaphore
+    ; STORE   s6,             SP_SEM      ;
+    JUMP    main_L0                     ;   } // end - main while loop  
+                
+            
+;**************************************************************************************
+; Support functions
+;************************************************************************************** 
+INCLUDE "uart_interface_routines.psm"
+
+HelloWorldTransmitTest:
     LOAD    s5,     48 ;'H'
     CALL    UART_TX
     
@@ -209,120 +266,11 @@ main_L0:
     
     LOAD    s5,     20 ;' '
     CALL    UART_TX
-
-wait_for_UART_RX: 
-    CALL UART_RX
-    JUMP Z, wait_for_UART_RX    
-    
-    LOAD    s1, s5    
-    CALL LED_wrleds
-    
-    
-    FETCH   s6,             SP_SEM
-    SUB     s6,             01                  ;       decrement semaphore
-    STORE   s6,             SP_SEM              ;
-    JUMP    main_L0                             ;   } // end - main while loop  
-                
-            
-;**************************************************************************************
-; Support functions
-;************************************************************************************** 
-
-ButtonTest: 
-    INPUT   s1,             PA_READ_BUTTONS    
-    CALL LED_wrleds
-    RETURN
-    
-HubRegisterTest:
-    ; Write To All Hub Registers a Unique Pattern
-    LOAD s1, 01
-    OUTPUT s1, PA_WRITE_HUB_REGISTER0
-    
-    LOAD s1, 02
-    OUTPUT s1, PA_WRITE_HUB_REGISTER1
-    
-    LOAD s1, 04
-    OUTPUT s1, PA_WRITE_HUB_REGISTER2
-    
-    LOAD s1, 08
-    OUTPUT s1, PA_WRITE_HUB_REGISTER3
-    
-    LOAD s1, 0F
-    OUTPUT s1, PA_WRITE_HUB_REGISTER4
-    
-    LOAD s1, 10
-    OUTPUT s1, PA_WRITE_HUB_REGISTER5
-    
-    LOAD s1, AA
-    OUTPUT s1, PA_WRITE_HUB_REGISTER6
-    
-    LOAD s1, FF
-    OUTPUT s1, PA_WRITE_HUB_REGISTER7
-    
-    ; Read back the Hub Registers, looking
-    ; for correct unique pattern
-    INPUT s1, PA_READ_HUB_REGISTER0
-    COMPARE s1, 01
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER1
-    COMPARE s1, 02
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER2
-    COMPARE s1, 04
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER3
-    COMPARE s1, 08
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER4
-    COMPARE s1, 0F
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER5
-    COMPARE s1, 10
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER6
-    COMPARE s1, AA
-    JUMP NZ, ErrorReadRegister
-    
-    INPUT s1, PA_READ_HUB_REGISTER7
-    COMPARE s1, FF
-    JUMP NZ, ErrorReadRegister
-    
-    ;Read back success
-    LOAD s1, FF
-    CALL LED_wrleds_hi      
     
     RETURN
-ErrorReadRegister:
-    ;Read back failed
-    LOAD s1, 00
-    CALL LED_wrleds_hi
-    
-    RETURN
-INCLUDE "uart_interface_routines.psm"
-
-;*************************
-; Nexys4 I/O Functions
-;*************************
 
 ;---------------------
 ; DEB_rdbtns() - Reads the debounced pushbuttons
-;
-; Returns the 5 pushbuttons. The buttons are returned as follows
-; (assuming the inputs to the I/O interface matches this order)
-; example:
-;    bit  7    6      5        4        3        2        1         0
-;         r    r      r    btn_cntr  btn_left  btn_up  btn_right  btn_down
-;
-; where r = reserved. A value of 1 indicates that the button is pressed.  
-; A 0 indicates that the button is not pressed.
-;
-; Registers used s0
 ;---------------------
 DEB_rdbtns:     INPUT       s0,     PA_READ_BUTTONS            ; read the buttons
                 AND         s0,     MSK_ALLBTNS         ; mask out unused bits
@@ -331,17 +279,6 @@ DEB_rdbtns:     INPUT       s0,     PA_READ_BUTTONS            ; read the button
                 
 ;---------------------
 ; DEB_rdsw() - Reads the low order debounced switches
-;
-; Returns the  low order switches  [7:0]. The switches are returned as follows
-; example:
-;    bit  7    6    5   4    3    2    1    0
-;        sw7  sw6  sw5 sw4  sw3  sw2  sw1  sw0
-;
-; where r = reserved, sw7 is the leftmost switch and sw0 is the rightmost
-; switch. A value of 1 indicates that the switch is on (up).  A 0 indicates that
-; the switch is off (down).
-;
-; Registers used s0
 ;---------------------
 DEB_rdsw:       INPUT       s0,     PA_READ_SWITCHES_7_0         ; read the slide switches
                 AND         s0,     MSK_ALLSW_LO        ; mask out unused bits
@@ -350,17 +287,6 @@ DEB_rdsw:       INPUT       s0,     PA_READ_SWITCHES_7_0         ; read the slid
                 
 ;---------------------
 ; DEB_rdsw_hi() - Reads the high order debounced switches
-;
-; Returns the  high order switches  [15:8]. The switches are returned as follows
-; example:
-;    bit   7     6     5    4     3     2     1    0
-;        sw15  sw14  sw13 sw12  sw11  sw10  sw9  sw8
-;
-; where r = reserved, sw15 is the leftmost switch and sw7 is the rightmost
-; switch. A value of 1 indicates that the switch is on (up).  A 0 indicates that
-; the switch is off (down).
-;
-; Registers used s0
 ;---------------------
 DEB_rdsw_hi:    INPUT       s0,     PA_READ_SWITCHES_15_8      ; read the slide switches
                 AND         s0,     MSK_ALLSW_HI        ; mask out unused bits
@@ -368,10 +294,6 @@ DEB_rdsw_hi:    INPUT       s0,     PA_READ_SWITCHES_15_8      ; read the slide 
                                 
 ;---------------------
 ; LED_wrleds() - Write the low order 8 LEDs
-;
-; Writes the pattern in s1 to the rightmost 8 LEDs on the Nexys4
-;
-; Registers used s0, s1
 ;---------------------
 LED_wrleds:     LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
                 AND         s0,     MSK_LEDS_LO         ; mask out unused bits
@@ -380,10 +302,6 @@ LED_wrleds:     LOAD        s0,     s1                  ; Copy LEDs to s0 to pre
 
 ;---------------------
 ; LED_wrleds_hi() - Write the high order 8 LEDs
-;
-; Writes the pattern in s1 to the lefmost 8 LEDs on the Nexys4
-;
-; Registers used s0, s1
 ;---------------------
 LED_wrleds_hi:  LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
                 AND         s0,     MSK_LEDS_HI         ; mask out unused bits
@@ -391,9 +309,9 @@ LED_wrleds_hi:  LOAD        s0,     s1                  ; Copy LEDs to s0 to pre
                 RETURN                              ; and return                                
                 
 
-; =========================
-; === Interrupt Handler ===
-; =========================
+;**************************************************************************************
+; Interrupt Handler
+;************************************************************************************** 
 ADDRESS 300
 isr:            STORE       s6,     SP_TEMP1            ;   save s6, s5
                 STORE       s5,     SP_TEMP2            ;
@@ -412,9 +330,9 @@ isr_L0:
                 FETCH       s5,     SP_TEMP2            ;
                 RETURNI         ENABLE              ;   and return from interrupt           
 
-; ========================
-; === Interrupt vector ===
-; ========================
+;**************************************************************************************
+; Interrupt Vector
+;************************************************************************************** 
 ADDRESS 3FF
 intvect:        JUMP    isr                         ; jump to interrupt service routine
                 
