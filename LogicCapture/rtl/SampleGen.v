@@ -27,7 +27,10 @@ module SampleGen #(
     
     output reg [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output reg [31:0]                    sample_number,
-    output reg                           write_enable
+    output reg                           write_enable,
+    
+    // Pulse to indicate to other logic that a sample is being captured
+    output reg samplePulse 
 );
 
 localparam TRANSITION_COUNTER_WIDTH = SAMPLE_PACKET_WIDTH - SAMPLE_WIDTH;
@@ -45,12 +48,14 @@ always @(posedge clk) begin
         sample_number         <= 32'd0;
         samplePacket          <= {SAMPLE_PACKET_WIDTH{1'b0}};
         last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
+        samplePulse           <= 1'b0;
     end else begin
         if (running) begin
             if (transition | (last_transition_count === MAX_SAMPLE_INTERVAL)) begin
                 samplePacket          <= {last_transition_count, sampleData};
                 last_transition_count <= {TRANSITION_COUNTER_WIDTH{1'b0}};
                 write_enable          <= 1'b1;
+                samplePulse           <= 1'b1;
                 if (sample_number === MAX_SAMPLE_NUMBER) begin
                     sample_number <= 32'd0;
                 end else begin
@@ -60,8 +65,10 @@ always @(posedge clk) begin
                 samplePacket          <= samplePacket;
                 last_transition_count <= last_transition_count + 1'd1;
                 write_enable          <= 1'b0;
+                samplePulse           <= 1'b0;
             end
         end else begin
+            samplePulse           <= 1'b0;
             sample_number         <= 32'd0;
             write_enable          <= 1'b0;
             samplePacket          <= {SAMPLE_PACKET_WIDTH{1'b0}};
