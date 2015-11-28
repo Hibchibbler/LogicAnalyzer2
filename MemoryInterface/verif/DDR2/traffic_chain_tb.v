@@ -106,11 +106,10 @@ module traffic_chain_tb;
         end
     end
 
-    localparam TRAFFIC_GEN_DELAY = RESET_PERIOD*2;
+    localparam TRAFFIC_GEN_DELAY = 80000000;
     reg traffic_gen_enable;
     initial begin
         traffic_gen_enable = 1'b0;
-        #(100*RESET_PERIOD) traffic_gen_enable = 1'b0; 
         #TRAFFIC_GEN_DELAY traffic_gen_enable = 1'b1;
         #(CLOCK_PERIOD_IN*2) traffic_gen_enable = 1'b0;
     end

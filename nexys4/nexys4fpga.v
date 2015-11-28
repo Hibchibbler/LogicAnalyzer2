@@ -92,7 +92,7 @@ assign preTriggerSampleCount = 30;
 reg   abort;
 initial begin
     abort = 1'b0;
-    #5000000 abort = 1'b1;
+//    #5000000 abort = 1'b1;
 end
 
 assign start = sw[0];
