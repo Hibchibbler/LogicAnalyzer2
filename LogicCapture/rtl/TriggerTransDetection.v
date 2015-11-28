@@ -43,7 +43,7 @@
  *
  */
 module TriggerTransDetection #(
-    parameter SAMPLE_WIDTH = 8
+    parameter SAMPLE_WIDTH = 16
 ) (
     input [SAMPLE_WIDTH-1:0] latestSample,
     input [SAMPLE_WIDTH-1:0] previousSample,
@@ -56,7 +56,7 @@ module TriggerTransDetection #(
     // Configurations For triggers
     // Edge Trigger Configurations
     // Which channel is the edge being monitored on?
-    input [31:0] edgeChannel,
+    input [7:0] edgeChannel,
     // 1 = positive edge, 0 = negative edge
     input edgeType,
     // Is the edge trigger actually active?
