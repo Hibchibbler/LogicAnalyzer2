@@ -6,7 +6,7 @@ module LogCap #(
     input reset,
     input  [SAMPLE_WIDTH-1:0] sampleData,
     input [31:0] maxSampleCount,
-    input [31:0] preTriggerSampleCount,
+    input [31:0] preTriggerSampleCountMax,
     input [SAMPLE_WIDTH-1:0] desiredPattern,
     input [SAMPLE_WIDTH-1:0] activeChannels,
     input [SAMPLE_WIDTH-1:0] dontCareChannels,
@@ -19,44 +19,19 @@ module LogCap #(
     output     [7:0]                 status,
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output                           write_enable,
-    output [31:0]                    sample_number
+    output [31:0]                    sample_number,
+    output [31:0] sampleNumber_Begin,
+    output [31:0] sampleNumber_End,
+    output [31:0] sampleNumber_Trig
 );
 
-reg [31:0] triggerSampleNumber;
-
-reg [31:0] postTriggerSamples;
 reg [SAMPLE_WIDTH-1:0] latestSample;
 reg [SAMPLE_WIDTH-1:0] previousSample;
 
-wire running;
-
 wire postTrigger, preTrigger, idle;
-
-wire triggered, transition;
-reg complete;
-
-always @(posedge clk) begin
-    if (reset) begin
-        triggerSampleNumber <= 32'd0;
-    end else begin
-        if (triggered & preTrigger) begin
-            triggerSampleNumber <= sample_number;
-        end else if(postTrigger) begin
-            triggerSampleNumber <= triggerSampleNumber;
-        end else begin
-            triggerSampleNumber <= 32'd0;
-        end
-    end
-end
+wire triggered, transition, complete;
 
 assign status = {5'b00000, postTrigger, preTrigger, idle};
-
-assign running = preTrigger | postTrigger;
-
-always @(*) begin
-    postTriggerSamples = maxSampleCount - preTriggerSampleCount;
-    complete = (sample_number - triggerSampleNumber) >= postTriggerSamples;
-end
 
 // Capture sample data values
 always @(posedge clk) begin
@@ -103,12 +78,23 @@ SampleGen #(
 ) sampleGen(
     .clk(clk),
     .reset(reset),
-    .running(running),
+    .start(start),
+    .abort(abort),
+    .complete(complete),
     .transition(transition),
+    .triggered(triggered),
+    .preTrigger(preTrigger),
+    .postTrigger(postTrigger),
+    .idle(idle),
     .sampleData(latestSample),
     .samplePacket(samplePacket),
     .sample_number(sample_number),
-    .write_enable(write_enable)
+    .write_enable(write_enable),
+    .maxSampleCount(maxSampleCount),
+    .preTriggerSampleCountMax(preTriggerSampleCountMax),
+    .sampleNum_Begin(sampleNum_Begin),
+    .sampleNum_End(sampleNum_End),
+    .sampleNum_Trig(sampleNum_Trig)
 );
 
 endmodule
