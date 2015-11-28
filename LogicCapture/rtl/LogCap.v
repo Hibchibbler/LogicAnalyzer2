@@ -1,12 +1,10 @@
-module #(
-    SAMPLE_WIDTH        = 16,
-    SAMPLE_PACKET_WIDTH = 32
-) LogCap (
+module LogCap #(
+    parameter SAMPLE_WIDTH        = 16,
+    parameter SAMPLE_PACKET_WIDTH = 32
+) (
     input clk,
     input reset,
-    
     input  [SAMPLE_WIDTH-1:0] sampleData,
-    
     input [31:0] maxSampleCount,
     input [31:0] preTriggerSampleCount,
     input [SAMPLE_WIDTH-1:0] desiredPattern,
@@ -16,16 +14,15 @@ module #(
     input patternTriggerEnable,
     input edgeTriggerEnable,
     input edgeType,
-    
     input start,
     input abort,
-    
-    output     [7:0]                status,
-    
+    output     [7:0]                 status,
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output                           write_enable,
     output [31:0]                    sample_number
 );
+
+reg [31:0] triggerSampleNumber;
 
 reg [31:0] postTriggerSamples;
 reg [SAMPLE_WIDTH-1:0] latestSample;
@@ -38,13 +35,27 @@ wire postTrigger, preTrigger, idle;
 wire triggered, transition;
 reg complete;
 
+always @(posedge clk) begin
+    if (reset) begin
+        triggerSampleNumber <= 32'd0;
+    end else begin
+        if (triggered & preTrigger) begin
+            triggerSampleNumber <= sample_number;
+        end else if(postTrigger) begin
+            triggerSampleNumber <= triggerSampleNumber;
+        end else begin
+            triggerSampleNumber <= 32'd0;
+        end
+    end
+end
+
 assign status = {5'b00000, postTrigger, preTrigger, idle};
 
 assign running = preTrigger | postTrigger;
 
 always @(*) begin
-    postTriggerSamples = totalSamples - preTriggerSamples;
-    complete = (sample_num - triggerSampleNumber) >= postTriggerSamples;
+    postTriggerSamples = maxSampleCount - preTriggerSampleCount;
+    complete = (sample_number - triggerSampleNumber) >= postTriggerSamples;
 end
 
 // Capture sample data values
