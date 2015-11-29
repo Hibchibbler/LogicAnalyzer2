@@ -14,11 +14,11 @@ module analyzerReadbackFSM #(
     input             idle, // sampler is in idle state
     input             read_trace_data,  
     output reg [31:0] readSampleNumber,
-    output            read_req,
+    output reg        read_req,
     
     input             read_allowed,
-    input             sampleNumber_Begin,
-    input             sampleNumber_End
+    input [31:0]      sampleNumber_Begin,
+    input [31:0]      sampleNumber_End
 );
 
 localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
@@ -29,67 +29,92 @@ localparam MAX_SAMPLE_NUMBER    = NUM_MEMORY_WORDS/NUM_WORDS_PER_PACKET-1;
 // A state machine to go through all samples
 // in memory and continually read them into the
 // FIFOs until there is no more data to get
-localparam BUF_IDLE = 1'b0, BUF_RDG = 1'b1;
-reg bufDataState; bufDataNextState;
-reg moreDramData;
+localparam IDLE = 1'b0, READING = 1'b1;
+reg state, nextState;
+reg moreData;
+
+reg [31:0] nextSample;
+
+// Calculate what the next memory sample
+// should be
+always @(*) begin
+    if ((readSampleNumber + 4) >= MAX_SAMPLE_NUMBER) begin
+        nextSample = readSampleNumber + 3 - MAX_SAMPLE_NUMBER;
+    end else begin
+        nextSample = readSampleNumber + 4;
+    end
+end
+
+// Determine if there is more data to get
+always @(*) begin
+    if (sampleNumber_Begin < sampleNumber_End) begin
+        moreData = (nextSample < sampleNumber_End);
+    end else begin
+        moreData = (nextSample < sampleNumber_End) | ((nextSample >= sampleNumber_Begin) & (nextSample <= MAX_SAMPLE_NUMBER));
+    end
+end
 
 always @(posedge clk) begin
+    $display(MAX_SAMPLE_NUMBER);
     if (reset) begin
-        bufDataState <= IDLE;
-    end else begni
-        bufDataState <= bufDataNextState;
+        state <= IDLE;
+    end else begin
+        state <= nextState;
     end
 end
 
 always @(*) begin
-    case(bufDataState)
-        BUF_IDLE: begin
-                    if (read_trace_data & idle) begin
-                        bufDataNextState = BUF_RDG;
+    case(state)
+        IDLE:    begin
+                    if (idle & read_trace_data)
+                        nextState = READING;
+                    else
+                        nextState = IDLE;
+                 end
+        READING: begin
+                    if (moreData) begin
+                        nextState = READING;
                     end else begin
-                        bufDataNextState = BUF_IDLE;
+                        // No more data, make sure to request last sample set
+                        if (read_allowed) begin
+                            nextState = IDLE;
+                        end else begin
+                            nextState = READING;
+                        end
                     end
-                  end
-        BUF_RDG:  begin
-                    if (moreDramData) begin
-                        bufDataNextState = BUF_RDG;
-                    end else begin
-                        bufDataNextState = BUF_IDLE;
-                    end
-                  end
+                 end
     endcase
 end
 
+always @(*) begin
+    read_req = 1'b0;
+    case(state)
+        IDLE:    begin
+                 end
+        READING: begin
+                    read_req = 1'b1;
+                 end
+    endcase
+end
+
+// Update the read sample number
+// whenever a read request has been
+// issued
 always @(posedge clk) begin
     if (reset) begin
-        read_req         <= 1'b0;
-        readSampleNumber <= 32'd0;
-        moreDramData     <= 1'b0;
+        readSampleNumber = 32'd0;
     end else begin
-        if (state === BUF_RDG) begin
-            read_req <= 1'b1;
-            if (readSampleNumber === sampleNumber_End) begin
-                moreDramData <= 1'b0;
-            end else begin
-                moreDramData <= 1'b1;
-            end
+        if (state == IDLE) begin
+            readSampleNumber <= sampleNumber_Begin;
+        end else begin // READING
             if (read_allowed) begin
-                if (readSampleNumber === MAX_SAMPLE_NUMBER) begin
-                    readSampleNumber <= 32'd0;
-                end else begin
-                    readSampleNumber <= readSampleNumber + 32'd1;
-                end
+                readSampleNumber <= nextSample;
             end else begin
                 readSampleNumber <= readSampleNumber;
             end
-        end else if (state == BUF_IDLE) begin
-            read_req         <= 1'b0;
-            readSampleNumber <= sampleNumber_Begin;
-            moreDramData     <= 1'b1;
         end
     end
 end
-
 
 
 endmodule
