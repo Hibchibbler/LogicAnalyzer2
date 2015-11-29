@@ -55,7 +55,6 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
-    $display(MAX_SAMPLE_NUMBER);
     if (reset) begin
         state <= IDLE;
     end else begin
