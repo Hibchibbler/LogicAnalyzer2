@@ -26,7 +26,7 @@ Initialize:
 FirmwareLoop:
     If UART Rx Data Present Then
      datum = Read UART
-     STORE b, (bufferIndex)
+     STORE datum, (bufferIndex)
      bufferIndex++;
      
      if (bufferIndex == COMMAND_SIZE){
