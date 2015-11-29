@@ -51,56 +51,91 @@ module StubCaptureTop #(
     reg [31:0]                      maxSampleCount;
     reg [31:0]                      preTriggerSampleCount;
     
+    reg [31:0]                      statusCounter;
+    
 
     localparam  CMD_NOP                 = 8'h00,
                 CMD_START               = 8'h01,
                 CMD_ABORT               = 8'h02,
                 CMD_TRIGGER_CONFIGURE   = 8'h03,
                 CMD_BUFFER_CONFIGURE    = 8'h04,
-                CMD_READ_TRACE_DATA     = 8'h05;
+                CMD_READ_TRACE_DATA     = 8'h05,
+                
+                COUNTER_TRIGGER_MAX  =  'd50,
+                
+                STATUS_IDLE             = 3'h1,
+                STATUS_PRETRIGGER       = 3'h2,
+                STATUS_POSTTRIGGER      = 3'h4,
+                STATUS_DATAVALID        = 4'h8;
+                
             
             
     always @(posedge clk) begin
         if (reset == 1'b1) begin
-            //
+            statusCounter = 0;
+            status = {5'h0, STATUS_IDLE};
         end else begin
             if (command_strobe) begin
-               
                 case (command)
-                    CMD_START: currentCommand    <= CMD_START;
-                    CMD_ABORT: currentCommand    <= CMD_ABORT;
+                    CMD_START: begin
+                        currentCommand      <= CMD_START;
+                        status[3:0]         <= {1'b0, STATUS_PRETRIGGER};
+                    end
+                    CMD_ABORT: begin
+                        currentCommand          <= CMD_ABORT;
+                        status[2:0]             <= STATUS_IDLE;
+                    end
                     CMD_TRIGGER_CONFIGURE: begin
-                        currentCommand           <= CMD_TRIGGER_CONFIGURE;
-                        desiredPattern           <= {regIn0, regIn1};
-                        activeChannels           <= {regIn2, regIn3};
-                        dontCareChannels         <= {regIn4, regIn5};
-                        edgeChannel              <= regIn6;
-                        patternTriggerEnable     <= regIn7[0];
-                        edgeTriggerEnable        <= regIn7[1];
-                        edgeType                 <= regIn7[2];
+                        currentCommand          <= CMD_TRIGGER_CONFIGURE;
+                        desiredPattern          <= {regIn1, regIn0};
+                        activeChannels          <= {regIn3, regIn2};
+                        dontCareChannels        <= {regIn5, regIn4};
+                        edgeChannel             <= regIn6;
+                        patternTriggerEnable    <= regIn7[0];
+                        edgeTriggerEnable       <= regIn7[1];
+                        edgeType                <= regIn7[2];
                     end
                     CMD_BUFFER_CONFIGURE: begin
-                        currentCommand           <= CMD_BUFFER_CONFIGURE;
-                        maxSampleCount           <= {regIn0, regIn1};
-                        preTriggerSampleCount    <= {regIn2, regIn3};
+                        currentCommand          <= CMD_BUFFER_CONFIGURE;
+                        maxSampleCount          <= {regIn1, regIn0};
+                        preTriggerSampleCount   <= {regIn3, regIn2};
                     end
                     CMD_READ_TRACE_DATA: begin
-                        currentCommand           <= CMD_READ_TRACE_DATA;
-                        regOut0                  <= 8'hAA;//data we are uploading....
-                        regOut1                  <= 8'hBB;
-                        regOut2                  <= 8'hCC;
-                        regOut3                  <= 8'hDD;
-                        regOut4                  <= 8'hAA;
-                        regOut5                  <= 8'hBB;
-                        regOut6                  <= 8'hCC;
-                        regOut7                  <= 8'hDD;
+                        currentCommand          <= CMD_READ_TRACE_DATA;
+                        regOut0                 <= 8'hAA;//data we are uploading....
+                        regOut1                 <= 8'hBB;
+                        regOut2                 <= 8'hCC;
+                        regOut3                 <= 8'hDD;
+                        regOut4                 <= 8'hAA;
+                        regOut5                 <= 8'hBB;
+                        regOut6                 <= 8'hCC;
+                        regOut7                 <= 8'hDD;
+                        status[3]               <= 1'b1;
                     end
                     default: begin
-                        currentCommand           <= CMD_NOP;
+                        currentCommand          <= CMD_NOP;
                     end
                 endcase
             end else begin
-                currentCommand                   <= CMD_NOP;
+                currentCommand                  <= CMD_NOP;
+            end
+            if (status[2:0] == STATUS_PRETRIGGER) begin
+                if (statusCounter >= COUNTER_TRIGGER_MAX) begin
+                    status[2:0] <= STATUS_POSTTRIGGER;
+                    statusCounter <= 0;
+                end 
+                else begin
+                    statusCounter <= statusCounter + 1;
+                end
+            end
+            else if (status[2:0] == STATUS_POSTTRIGGER) begin
+                if (statusCounter >= COUNTER_TRIGGER_MAX) begin
+                    status[2:0] <= STATUS_IDLE;
+                    statusCounter <= 0;
+                end
+                else begin
+                    statusCounter <= statusCounter + 1;
+                end
             end
         end
     end
@@ -111,7 +146,6 @@ module StubCaptureTop #(
             sampleData_sync1 <= sampleData_sync0;
             sampleData       <= sampleData_sync1;
     end
-    
     
     // Save current and previous samples
     reg [SAMPLE_WIDTH-1:0] latestSample;

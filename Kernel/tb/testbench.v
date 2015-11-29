@@ -1,5 +1,16 @@
 `timescale 1ns / 100ps
 
+// -----------------------------------------------------------------
+// Version:  0.0
+// Author: Chip Wood
+// Date:     
+//
+// Testbench for CCProg/CCHub for LogicAnalyzer2
+// Portland State University Electrical and Computer Engineering
+// Course - ECE540
+// Final Project
+// ----------------------------------------------------------------- 
+
 `define TB_MODE 1
 `define RESET 0
 
@@ -17,8 +28,8 @@ reg   [7:0] JA, JB;                         // J connectors of nexys4FPGA
 
 
 // UART
-reg        urx_buffer_read;
 wire [7:0] data_rx;
+wire       urx_buffer_read;
 wire       urx_buffer_full;
 wire       urx_buffer_half_full;
 wire       urx_buffer_data_present;
@@ -37,7 +48,6 @@ initial begin
     sw = 16'h0000;
     data_tx = 8'h00;
     utx_buffer_write = 1'b0;
-    urx_buffer_read = 1'b0;
     JA = 8'h00;
     JB = 8'h00;
 end
@@ -96,10 +106,10 @@ nexys4fpga #(.TB_MODE(1)) target
 
 
 // UART READS
-// assert urx_buffer_read any time data is present
-always @(urx_buffer_data_present) urx_buffer_read = urx_buffer_data_present;
+// just read them as they come out - data present wire will go high, simply drive the buffer_read signal high to get data onto data_rx
+assign urx_buffer_read = urx_buffer_data_present;
 // print any uart data coming out of the nexys4fpga
-always @(posedge urx_buffer_read) $display("%5d UART data out: %s", $time, data_rx);
+always @(negedge urx_buffer_read) $display("%5d UART data out: %h", $time, data_rx);
 
 initial begin
     // reset the system
@@ -107,11 +117,13 @@ initial begin
     #100 btnCpuReset = ~`RESET;
 
     //for (i=0; i<100; i=i+1)
-    #10 write_uart(8'h02);
+    #10 write_uart(8'h01);
     
     // takes a total of ~22uS to get the full "HELLO World" back
     #22000;
-    $finish;
+    
+    
+    //$finish;
 end
 
 task write_uart;
