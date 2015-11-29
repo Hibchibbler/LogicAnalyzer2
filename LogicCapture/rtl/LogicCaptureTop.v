@@ -179,6 +179,15 @@ begin
     maxSampleCount           <= 32'd100;
     preTriggerSampleCountMax <= 32'd0;
     readbackMode             <= 32'd0;
+    regOut0                  <= 8'h00;
+    regOut1                  <= 8'h00;
+    regOut2                  <= 8'h00;
+    regOut3                  <= 8'h00;
+    regOut4                  <= 8'h00;
+    regOut5                  <= 8'h00;
+    regOut6                  <= 8'h00;
+    regOut7                  <= 8'h00;
+    acknowledge              <= 1'b0;
 end
 endtask
 
