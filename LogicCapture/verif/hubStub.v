@@ -30,7 +30,7 @@ module hubStub (
 );
 
 reg [31:0] clkCount;
-parameter CMD_DELAY_CLKS = 5000;
+parameter CMD_DELAY_CLKS = 50;
 
 wire cmdsAllowed;
 assign cmdsAllowed = (clkCount > CMD_DELAY_CLKS);
