@@ -137,8 +137,8 @@ module  command_control_hub
     always @(posedge clk) begin
         case (port_id[3:0])
             PA_READ_LOGCAP_REGISTER0:  port_in <= regIn0;
-            PA_READ_LOGCAP_REGISTER1:  port_in <= regIn0;
-            PA_READ_LOGCAP_REGISTER2:  port_in <= regIn0;
+            PA_READ_LOGCAP_REGISTER1:  port_in <= regIn1;
+            PA_READ_LOGCAP_REGISTER2:  port_in <= regIn2;
             PA_READ_LOGCAP_REGISTER3:  port_in <= regIn3;
             PA_READ_LOGCAP_REGISTER4:  port_in <= regIn4;
             PA_READ_LOGCAP_REGISTER5:  port_in <= regIn5;

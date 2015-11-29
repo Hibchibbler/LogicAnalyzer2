@@ -115,6 +115,14 @@ CONSTANT CMD_LOGCAP_ABORT,          02
 CONSTANT CMD_LOGCAP_CONF_TRIG,      03
 CONSTANT CMD_LOGCAP_CONF_BUFF,      04
 CONSTANT CMD_LOGCAP_DUMP,           05
+CONSTANT CMD_LOGCAP_STATS,          06
+
+; LogCap Status
+CONSTANT STATUS_LOGCAP_IDLE,        01
+CONSTANT STATUS_LOGCAP_PRE_TRIGGER, 02
+CONSTANT STATUS_LOGCAP_POST_TRIGGER,04
+CONSTANT STATUS_LOGCAP_DATA_VALID,  08
+
 
 ; --------- Logic Capture -----------
 ;
@@ -157,36 +165,101 @@ main_L0:                                ;   while(1) {  // main loop is an infin
     ; JUMP    Z,      main_L0             ;
 TestChooser:
 
-
-    ;INPUT s1, PA_READ_SWITCHES_7_0
-    INPUT s1, PA_READ_UART_DATA
-    COMPARE s1, 01
+    CALL UART_RX
+    COMPARE s5, 01
     JUMP Z, Test1
-    COMPARE s1, 02
+    COMPARE s5, 02
     JUMP Z, Test2
-    COMPARE s1, 04
+    COMPARE s5, 04
     JUMP Z, Test3
-    COMPARE s1, 08
+    COMPARE s5, 08
     JUMP Z, Test4
     JUMP TestFinish
 Test1:
+    
     ;Write LogCap Command Abort
+    LOAD   s0, CMD_LOGCAP_ABORT
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND
+    
     ;Read Status
     ; Assert Status == Idle
-        
+    CALL WaitLogCapIdle
+    
     ;Write Trigger Configuration to LogCap Registers
     ;Write LogCap Command ConfTrig
-    ;
+    LOAD s0, 00                     ; desired pattern [7:0] = 00000000
+    LOAD s1, 00                     ; desired pattern[15:8] = 00000000 (16'h0000)
+    LOAD s2, 07                     ; active channels [7:0] = 00000111
+    LOAD s3, 00                     ; active channels[15:8] = 00000000 (16'h0007)
+    LOAD s4, F8                     ; don't care channels [7:0] = 11111000
+    LOAD s5, FF                     ; don't care channels[15:8] = 11111111 (16'hFFF8)
+    LOAD s6, 00                     ; edge channel = 0
+    LOAD s7, 06                     ; {edgeType, edgeTrigEn, patternTrigEn} = 110
+    LOAD s8, CMD_LOGCAP_CONF_TRIG   ; command logcap to read new trigger config
+    OUTPUT s0, PA_WRITE_LOGCAP_REGISTER0
+    OUTPUT s1, PA_WRITE_LOGCAP_REGISTER1
+    OUTPUT s2, PA_WRITE_LOGCAP_REGISTER2
+    OUTPUT s3, PA_WRITE_LOGCAP_REGISTER3
+    OUTPUT s4, PA_WRITE_LOGCAP_REGISTER4
+    OUTPUT s5, PA_WRITE_LOGCAP_REGISTER5
+    OUTPUT s6, PA_WRITE_LOGCAP_REGISTER6
+    OUTPUT s7, PA_WRITE_LOGCAP_REGISTER7
+    OUTPUT s8, PA_WRITE_LOGCAP_COMMAND
+    
     ;Write Buffer Configuration to LogCap Registers
     ;Write LogCap Command ConfBuf
-    ;
+    LOAD s0, 10 ; maxSampleCount [7:0]
+    LOAD s1, 27 ; maxSampleCount[15:0] - 10000 (must be a multiple of 4)
+    LOAD s2, E8 ; preTriggerSampleCount [7:0]
+    LOAD s3, 03 ; preTriggerSampleCount[15:0] - 1000
+    LOAD s4, CMD_LOGCAP_CONF_BUFF
+    OUTPUT s0, PA_WRITE_LOGCAP_REGISTER0
+    OUTPUT s1, PA_WRITE_LOGCAP_REGISTER1
+    OUTPUT s2, PA_WRITE_LOGCAP_REGISTER2
+    OUTPUT s3, PA_WRITE_LOGCAP_REGISTER3
+    OUTPUT s4, PA_WRITE_LOGCAP_COMMAND
+    
     ;Read Status
     ;   Assert Status == Idle
-    ;
+    CALL WaitLogCapIdle
+    
     ;Write LogCap Command Start
     ;Read Status
     ;   Assert Status == Idle --> PreTrigger --> PostTrigger --> Idle
-    ;
+    LOAD   s0, CMD_LOGCAP_START             ; 
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND      ; issue start command to logCap
+    LOAD s1, STATUS_LOGCAP_PRE_TRIGGER      ; wait for log cap to go to pre trigger
+    CALL WaitLogCapStatuss1                 ; 
+    LOAD s1, STATUS_LOGCAP_POST_TRIGGER     ; wait for log cap to go to post trigger
+    CALL WaitLogCapStatuss1                 ; 
+    CALL WaitLogCapIdle                     ; wait for log cap to finish and go to idle
+    
+    ; reading data for now, trace stats commands not set up yet
+    LOAD s0, CMD_LOGCAP_DUMP                ; 
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND      ;
+    
+    ; spin on data ready
+    LOAD s1, STATUS_LOGCAP_DATA_VALID
+    CALL WaitLogCapStatuss1
+    
+    ; read from logCap registers and put data out on UART
+    INPUT s5, PA_READ_LOGCAP_REGISTER0
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER1
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER2
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER3
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER4
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER5
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER6
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER7
+    CALL UART_TX
+    
     ;Write Trace Statistics
     ;Delay
     ;Read Byte0 from LogCap Registers
@@ -282,6 +355,25 @@ HelloWorldTransmitTest:
     
     RETURN
 
+
+;---------------------
+; WaitLogCapIdle() - reads LogCap status, returns once LogCap is idle
+;   will get stuck in a near-endless loop if an 'ABORT' command was not issued first
+;   or if LogCap is busy capturing signals for a long time
+;---------------------
+WaitLogCapIdle:
+    INPUT   s0, PA_READ_LOGCAP_STATUS   ; read logcap status
+    AND     s0, 01                      ; mask off all bits except idle
+    COMPARE s0, 01                      ; is idle high?
+    CALL NZ, WaitLogCapIdle             ; loop if it isn't
+    RETURN                              ; return if it is
+
+WaitLogCapStatuss1:
+    INPUT   s0, PA_READ_LOGCAP_STATUS   ; read logcap status
+    AND     s0, s1                      ; mask off all bits except relevant status bit
+    COMPARE s0, s1                      ; is status bit high?
+    CALL NZ, WaitLogCapStatuss1         ; loop if it isn't
+    RETURN                              ; return if it is
 ;---------------------
 ; DEB_rdbtns() - Reads the debounced pushbuttons
 ;---------------------

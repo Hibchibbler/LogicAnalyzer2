@@ -12,9 +12,9 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="1516347462fs"></ZoomEndTime>
-      <Cursor1Time time="115000000fs"></Cursor1Time>
+      <ZoomStartTime time="2856583334fs"></ZoomStartTime>
+      <ZoomEndTime time="3195583335fs"></ZoomEndTime>
+      <Cursor1Time time="2935000000fs"></Cursor1Time>
    </zoom_setting>
    <WVObjectSize size="6" />
    <wvobject db_ref_id="1" fp_name="/testbench/clk" type="logic">
@@ -62,7 +62,6 @@
       <wvobject fp_name="group233" type="group">
          <obj_property name="label">TX</obj_property>
          <obj_property name="DisplayName">label</obj_property>
-         <obj_property name="isExpanded"></obj_property>
          <wvobject db_ref_id="1" fp_name="/testbench/data_tx" type="array">
             <obj_property name="ElementShortName">data_tx[7:0]</obj_property>
             <obj_property name="ObjectShortName">data_tx[7:0]</obj_property>
@@ -74,6 +73,7 @@
          <wvobject fp_name="group530" type="group">
             <obj_property name="label">TX_buffer</obj_property>
             <obj_property name="DisplayName">label</obj_property>
+            <obj_property name="isExpanded"></obj_property>
             <wvobject db_ref_id="1" fp_name="/testbench/utx_buffer_full" type="logic">
                <obj_property name="ElementShortName">utx_buffer_full</obj_property>
                <obj_property name="ObjectShortName">utx_buffer_full</obj_property>
@@ -96,7 +96,6 @@
    <wvobject fp_name="group187" type="group">
       <obj_property name="label">fpga_ui</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="isExpanded"></obj_property>
       <wvobject db_ref_id="1" fp_name="/testbench/sw" type="array">
          <obj_property name="ElementShortName">sw[15:0]</obj_property>
          <obj_property name="ObjectShortName">sw[15:0]</obj_property>
@@ -166,6 +165,14 @@
          <obj_property name="ElementShortName">instruction[17:0]</obj_property>
          <obj_property name="ObjectShortName">instruction[17:0]</obj_property>
       </wvobject>
+      <wvobject db_ref_id="1" fp_name="/testbench/target/cc/processor/carry_flag" type="logic">
+         <obj_property name="ElementShortName">carry_flag</obj_property>
+         <obj_property name="ObjectShortName">carry_flag</obj_property>
+      </wvobject>
+      <wvobject db_ref_id="1" fp_name="/testbench/target/cc/processor/zero_flag" type="logic">
+         <obj_property name="ElementShortName">zero_flag</obj_property>
+         <obj_property name="ObjectShortName">zero_flag</obj_property>
+      </wvobject>
       <wvobject db_ref_id="1" fp_name="/testbench/target/cc/port_id" type="array">
          <obj_property name="ElementShortName">port_id[7:0]</obj_property>
          <obj_property name="ObjectShortName">port_id[7:0]</obj_property>
@@ -181,6 +188,7 @@
       <wvobject fp_name="group533" type="group">
          <obj_property name="label">strobes</obj_property>
          <obj_property name="DisplayName">label</obj_property>
+         <obj_property name="isExpanded"></obj_property>
          <wvobject db_ref_id="1" fp_name="/testbench/target/cc/processor/interrupt" type="logic">
             <obj_property name="ElementShortName">interrupt</obj_property>
             <obj_property name="ObjectShortName">interrupt</obj_property>
@@ -211,10 +219,147 @@
          <obj_property name="ElementShortName">switch[15:0]</obj_property>
          <obj_property name="ObjectShortName">switch[15:0]</obj_property>
       </wvobject>
+      <wvobject fp_name="group106" type="group">
+         <obj_property name="label">stubLogCap</obj_property>
+         <obj_property name="DisplayName">label</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+         <wvobject db_ref_id="1" fp_name="/testbench/target/sct/command_strobe" type="logic">
+            <obj_property name="ElementShortName">command_strobe</obj_property>
+            <obj_property name="ObjectShortName">command_strobe</obj_property>
+         </wvobject>
+         <wvobject db_ref_id="1" fp_name="/testbench/target/sct/command" type="array">
+            <obj_property name="ElementShortName">command[7:0]</obj_property>
+            <obj_property name="ObjectShortName">command[7:0]</obj_property>
+         </wvobject>
+         <wvobject db_ref_id="1" fp_name="/testbench/target/sct/currentCommand" type="array">
+            <obj_property name="ElementShortName">currentCommand[7:0]</obj_property>
+            <obj_property name="ObjectShortName">currentCommand[7:0]</obj_property>
+         </wvobject>
+         <wvobject fp_name="group121" type="group">
+            <obj_property name="label">LogRegs</obj_property>
+            <obj_property name="DisplayName">label</obj_property>
+            <obj_property name="isExpanded"></obj_property>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/status" type="array">
+               <obj_property name="ElementShortName">status[7:0]</obj_property>
+               <obj_property name="ObjectShortName">status[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/statusCounter" type="array">
+               <obj_property name="ElementShortName">statusCounter[31:0]</obj_property>
+               <obj_property name="ObjectShortName">statusCounter[31:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/desiredPattern" type="array">
+               <obj_property name="ElementShortName">desiredPattern[15:0]</obj_property>
+               <obj_property name="ObjectShortName">desiredPattern[15:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/activeChannels" type="array">
+               <obj_property name="ElementShortName">activeChannels[15:0]</obj_property>
+               <obj_property name="ObjectShortName">activeChannels[15:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/dontCareChannels" type="array">
+               <obj_property name="ElementShortName">dontCareChannels[15:0]</obj_property>
+               <obj_property name="ObjectShortName">dontCareChannels[15:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/edgeChannel" type="array">
+               <obj_property name="ElementShortName">edgeChannel[7:0]</obj_property>
+               <obj_property name="ObjectShortName">edgeChannel[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/patternTriggerEnable" type="logic">
+               <obj_property name="ElementShortName">patternTriggerEnable</obj_property>
+               <obj_property name="ObjectShortName">patternTriggerEnable</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/edgeTriggerEnable" type="logic">
+               <obj_property name="ElementShortName">edgeTriggerEnable</obj_property>
+               <obj_property name="ObjectShortName">edgeTriggerEnable</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/edgeType" type="logic">
+               <obj_property name="ElementShortName">edgeType</obj_property>
+               <obj_property name="ObjectShortName">edgeType</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/maxSampleCount" type="array">
+               <obj_property name="ElementShortName">maxSampleCount[31:0]</obj_property>
+               <obj_property name="ObjectShortName">maxSampleCount[31:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/preTriggerSampleCount" type="array">
+               <obj_property name="ElementShortName">preTriggerSampleCount[31:0]</obj_property>
+               <obj_property name="ObjectShortName">preTriggerSampleCount[31:0]</obj_property>
+            </wvobject>
+         </wvobject>
+         <wvobject fp_name="group107" type="group">
+            <obj_property name="label">RegIn</obj_property>
+            <obj_property name="DisplayName">label</obj_property>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn0" type="array">
+               <obj_property name="ElementShortName">regIn0[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn0[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn1" type="array">
+               <obj_property name="ElementShortName">regIn1[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn1[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn2" type="array">
+               <obj_property name="ElementShortName">regIn2[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn2[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn3" type="array">
+               <obj_property name="ElementShortName">regIn3[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn3[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn4" type="array">
+               <obj_property name="ElementShortName">regIn4[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn4[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn5" type="array">
+               <obj_property name="ElementShortName">regIn5[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn5[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn6" type="array">
+               <obj_property name="ElementShortName">regIn6[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn6[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regIn7" type="array">
+               <obj_property name="ElementShortName">regIn7[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regIn7[7:0]</obj_property>
+            </wvobject>
+         </wvobject>
+         <wvobject fp_name="group108" type="group">
+            <obj_property name="label">RegOut</obj_property>
+            <obj_property name="DisplayName">label</obj_property>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut0" type="array">
+               <obj_property name="ElementShortName">regOut0[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut0[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut1" type="array">
+               <obj_property name="ElementShortName">regOut1[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut1[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut2" type="array">
+               <obj_property name="ElementShortName">regOut2[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut2[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut3" type="array">
+               <obj_property name="ElementShortName">regOut3[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut3[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut4" type="array">
+               <obj_property name="ElementShortName">regOut4[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut4[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut5" type="array">
+               <obj_property name="ElementShortName">regOut5[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut5[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut6" type="array">
+               <obj_property name="ElementShortName">regOut6[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut6[7:0]</obj_property>
+            </wvobject>
+            <wvobject db_ref_id="1" fp_name="/testbench/target/sct/regOut7" type="array">
+               <obj_property name="ElementShortName">regOut7[7:0]</obj_property>
+               <obj_property name="ObjectShortName">regOut7[7:0]</obj_property>
+            </wvobject>
+         </wvobject>
+      </wvobject>
       <wvobject fp_name="group415" type="group">
          <obj_property name="label">UART_TX</obj_property>
          <obj_property name="DisplayName">label</obj_property>
-         <obj_property name="isExpanded"></obj_property>
          <wvobject db_ref_id="1" fp_name="/testbench/target/cchub/data_tx" type="array">
             <obj_property name="ElementShortName">data_tx[7:0]</obj_property>
             <obj_property name="ObjectShortName">data_tx[7:0]</obj_property>
@@ -265,7 +410,6 @@
    <wvobject fp_name="group665" type="group">
       <obj_property name="label">nexys4</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="isExpanded"></obj_property>
       <wvobject db_ref_id="1" fp_name="/testbench/target/clk" type="logic">
          <obj_property name="ElementShortName">clk</obj_property>
          <obj_property name="ObjectShortName">clk</obj_property>
