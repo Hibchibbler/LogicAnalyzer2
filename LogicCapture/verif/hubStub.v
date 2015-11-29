@@ -29,11 +29,7 @@ module hubStub (
     input [7:0]          status
 );
 
-reg [31:0] clkCount;
 parameter CMD_DELAY_CLKS = 50;
-
-wire cmdsAllowed;
-assign cmdsAllowed = (clkCount > CMD_DELAY_CLKS);
 
 // Function code definitions
 localparam  CMD_NOP                 = 8'h00,
@@ -51,14 +47,20 @@ localparam  CMD_NOP                 = 8'h00,
 wire ack;
 assign ack = status[3];
 
+task commandSequence;
+begin
+    configBuffer(32'd20, 32'd110);
+    waitNClocks(10);
+end
+endtask
+
 always @(posedge clk) begin
     if (~resetn) begin
         resetMe;
     end else begin
-        if (cmdsAllowed) begin
-            configBuffer(32'd20, 32'd110);
-            $finish;
-        end
+        waitNClocks(CMD_DELAY_CLKS);
+        commandSequence;
+        $finish;
     end
 end
 
@@ -91,8 +93,14 @@ task configBuffer;
 input [31:0] preTriggerCount;
 input [31:0] totalSampleCount;
 begin
-    {regIn3, regIn2, regIn1, regIn0} <= totalSampleCount;
-    {regIn7, regIn6, regIn5, regIn4} <= preTriggerCount;
+    regIn7 <= preTriggerCount[31:24];
+    regIn6 <= preTriggerCount[23:16];
+    regIn5 <= preTriggerCount[15:8];
+    regIn4 <= preTriggerCount[7:0];
+    regIn3 <= totalSampleCount[31:24];
+    regIn2 <= totalSampleCount[23:16];
+    regIn1 <= totalSampleCount[15:8];
+    regIn0 <= totalSampleCount[7:0];
     issueCmd(CMD_BUFFER_CONFIGURE);
 end
 endtask
@@ -112,14 +120,12 @@ begin
 end
 endtask
 
-// Counter to keep track of clk counts since reset
-// is deasserted
-always @(posedge clk) begin
-    if (~resetn) begin
-        clkCount <= 32'd0;
-    end else begin
-        clkCount <= clkCount + 1;
-    end
+task waitNClocks;
+input [31:0] num;
+begin
+    repeat(num)
+        @(posedge clk);
 end
+endtask
 
 endmodule
