@@ -2,10 +2,12 @@
  *                 sampler potentially every clock edge and pull them 
  *                 up into groups of samples that are the correct size
  *                 for the memory width.
- *                 For example, the sample size may be 32 bits, but
+ *                 The sample size is32 bits, but
  *                 the memory interface has a data width of 128 bits.
  *                 This module will accumulate 4 32 bit samples and
  *                 send a 128 bit chunk to the memory interface.
+ *                 It will also supply the proper address to memory
+ *                 by converting the provided sample number.
  * Interface:
  *       Inputs:
  *         clk           - system clock
@@ -45,34 +47,145 @@ module dram_packer #(
     input                           write_allowed
 );
 
-localparam NUM_BYTES_PER_PACKET = SAMPLE_PACKET_WIDTH/8;
-localparam NUM_WORDS_PER_PACKET = NUM_BYTES_PER_PACKET/MEMORY_WORD_WIDTH; //2
+localparam IDLE = 1'b0, SENDING = 1'b1;
+reg sendState, sendNextState;
 
-localparam PACK_SIZE  = MEM_IF_WIDTH/SAMPLE_PACKET_WIDTH;
-localparam MAX_PACK   = PACK_SIZE*2;
-localparam BUFF_WIDTH = MEM_IF_WIDTH*2;
+localparam W0 = 2'b00, W1 = 2'b01, W2 = 2'b10,  W3 = 2'b11;
+reg [1:0] state, nextState;
+
+reg [SAMPLE_PACKET_WIDTH-1:0] w0,w1,w2;
+
+reg go;
 
 // Ensures address be will always be multiples of 8.
 reg [31:0] capturedSampleNum;
-localparam SAMPLE_MASK_WIDTH = 3;
-wire [31:0] capturedSampleMod;
-assign capturedSampleMod = capturedSampleNum*NUM_WORDS_PER_PACKET;
-assign dram_adx = {capturedSampleMod[31:SAMPLE_MASK_WIDTH], {SAMPLE_MASK_WIDTH{1'b0}}};
+sampleToAdx #(
+    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH),
+    .ADX_WIDTH(ADX_WIDTH),
+    .MEMORY_WORD_WIDTH(MEMORY_WORD_WIDTH)
+) adxConversion(
+    .sample_num(capturedSampleNum),
+    .adx(dram_adx)
+);
 
-reg [8:0] flushCount;
-reg [8:0] packCount;
-reg [BUFF_WIDTH-1:0] dBuff;
-reg dramSendFlag;
-reg buffSelect;
 
-always @(*) begin
-    pageFull = flushCount === PACK_SIZE;
+// This state machine handles accumuluating the
+// sample data
+always @(posedge clk) begin
+    if (~resetn) begin
+        state <= W0;
+    end else begin
+        state <= nextState;
+    end
 end
 
-localparam IDLE = 1'b0, SENDING = 1'b1;
-reg go;
-reg sendState, sendNextState;
+always @(posedge clk) begin
+    if (~resetn) begin
+        w0 <= {SAMPLE_PACKET_WIDTH{1'b0}};
+        w1 <= {SAMPLE_PACKET_WIDTH{1'b0}};
+        w2 <= {SAMPLE_PACKET_WIDTH{1'b0}};
+        capturedSampleNum <= 32'd0;
+    end else begin
+        if (we) begin
+            case(state)
+                W0: begin
+                        w0 <= write_data;
+                        w1 <= w1;
+                        w2 <= w2;
+                        capturedSampleNum <= capturedSampleNum;
+                    end
+                W1: begin
+                        w0 <= w0;
+                        w1 <= write_data;
+                        w2 <= w2;
+                        capturedSampleNum <= capturedSampleNum;
+                    end
+                W2: begin
+                        w0 <= w0;
+                        w1 <= w1;
+                        w2 <= write_data;
+                        capturedSampleNum <= capturedSampleNum;
+                    end
+                W3: begin
+                        w0 <= w0;
+                        w1 <= w1;
+                        w2 <= w2;
+                        capturedSampleNum <= sample_num;
+                    end
+            endcase
+        end else begin
+            w0 <= w0;
+            w1 <= w1;
+            w2 <= w2;
+            capturedSampleNum <= capturedSampleNum;
+        end
+    end
+end
 
+always @(posedge clk) begin
+    if (~resetn) begin
+        dram_data <= {MEM_IF_WIDTH{1'b0}};
+    end else begin
+        if (state == W3) begin
+            if (we) begin
+                dram_data <= {write_data,w2,w1,w0};
+            end else begin
+                dram_data <= dram_data;
+            end
+        end else begin
+            dram_data <= dram_data;
+        end
+    end
+end
+
+always @(*) begin
+    pageFull = 1'b0;
+    case(state)
+        W0: begin
+                if (we)
+                    nextState = W1;
+                 else
+                    nextState = W0;
+            end
+        W1: begin
+                if (we)
+                    nextState = W2;
+                 else
+                    nextState = W1;
+            end
+        W2: begin
+                if (we)
+                    nextState = W3;
+                 else
+                    nextState = W2;
+            end
+        W3: begin
+                if (we) begin
+                    pageFull  = 1'b1;
+                    nextState = W0;
+                 end else
+                    nextState = W3;
+            end
+    endcase
+end
+
+always @(*) begin
+    go = 1'b0;
+    case(state)
+        W0: begin
+            end
+        W1: begin
+            end
+        W2: begin
+            end
+        W3: begin
+                go = we;
+            end
+    endcase
+end
+
+// This state machine handles sending the accumulated data
+// to the memory interface
 always @(posedge clk) begin
     if (~resetn) begin
         sendState <= IDLE;
@@ -109,55 +222,5 @@ always @(*) begin
     endcase
 end
 
-always @(posedge clk) begin
-    if (~resetn) begin
-        dBuff             <= 0;
-        dramSendFlag      <= 0;
-        packCount         <= 0;
-        flushCount        <= 0;
-        buffSelect        <= 0;
-        dram_data         <= 0;
-        go                <= 1'b0;
-        capturedSampleNum <= 32'd0;
-    end else begin
-        if (we) begin
-            dBuff[packCount*SAMPLE_PACKET_WIDTH+SAMPLE_PACKET_WIDTH-1 -: SAMPLE_PACKET_WIDTH] <= write_data;
-            packCount  <= packCount + 1'b1;
-            flushCount <= flushCount + 1;
-            if (pageFull) begin
-                transferPage;
-            end else begin
-                go <= 1'b0;
-                capturedSampleNum <= capturedSampleNum;
-            end
-            if (packCount === MAX_PACK-1) begin
-                packCount <= 0;
-            end
-        end else begin
-            if (pageFull) begin
-                transferPage;
-            end else begin
-                capturedSampleNum <= capturedSampleNum;
-                go                <= 1'b0;
-            end
-        end
-    end
-end
-
-// Kicks off the state machine to send off the currently
-// filled page of data to the memory interface
-task transferPage;
-  begin
-    if (buffSelect) begin
-        dram_data <= dBuff[BUFF_WIDTH-1 -: MEM_IF_WIDTH];
-    end else begin
-        dram_data <= dBuff[MEM_IF_WIDTH-1 -: MEM_IF_WIDTH];
-    end
-    flushCount        <= 4'b1;
-    buffSelect        <= ~buffSelect;
-    go                <= 1'b1;
-    capturedSampleNum <= sample_num - 1;
-  end
-endtask
 
 endmodule
