@@ -144,7 +144,7 @@ LogicCaptureTop ilogcap (
     
     // Command input from HUB
     .command(command),
-    .command_strobe(command_strobe),
+    .command_strobe(commandStrobe),
     
     // status register
     .status(status),
