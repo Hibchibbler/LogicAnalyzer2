@@ -111,7 +111,9 @@ assign status      = {4'b0000, acknowledge, postTrigger, preTrigger, idle};
 // Assign special logcap reset
 assign logCapReset = reset | cmdReset;
 
+// Register the applied command
 always @(posedge clk) begin
+    $display("RESET: %b  COMMAND: %h,  STROBE: %b   CURRENT COMMAND: %h", reset, command, command_strobe, currentCommand);
     if (reset) begin
         currentCommand <= CMD_NOP;
     end else begin
@@ -175,7 +177,6 @@ begin
     patternTriggerEnable     <= 1'b0;
     edgeTriggerEnable        <= 1'b0;
     edgeType                 <= 1'b0;
-    currentCommand           <= CMD_NOP;
     maxSampleCount           <= 32'd100;
     preTriggerSampleCountMax <= 32'd0;
     readbackMode             <= 32'd0;
@@ -203,9 +204,6 @@ begin
         CMD_READ_TRACE_SIZE:     executeReadTraceSize;
         CMD_READ_TRIGGER_SAMPLE: executeReadTriggerSample;
         CMD_RESET:               executeReset;
-        default: begin
-            currentCommand <= CMD_NOP;
-        end
     endcase
 end
 endtask
@@ -328,7 +326,6 @@ endtask
 
 task executeConfigBuffer;
 begin
-    currentCommand           <= CMD_BUFFER_CONFIGURE;
     maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
     preTriggerSampleCountMax <= {regIn7, regIn6, regIn5, regIn4};
     acknowledgeCmd;
@@ -337,7 +334,6 @@ endtask
 
 task executeConfigTrigger;
 begin
-    currentCommand       <= CMD_TRIGGER_CONFIGURE;
     desiredPattern       <= {regIn1, regIn0};
     activeChannels       <= {regIn3, regIn2};
     dontCareChannels     <= {regIn5, regIn4};
