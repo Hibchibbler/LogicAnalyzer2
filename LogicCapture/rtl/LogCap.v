@@ -93,9 +93,9 @@ SampleGen #(
     .write_enable(write_enable),
     .maxSampleCount(maxSampleCount),
     .preTriggerSampleCountMax(preTriggerSampleCountMax),
-    .sampleNum_Begin(sampleNum_Begin),
-    .sampleNum_End(sampleNum_End),
-    .sampleNum_Trig(sampleNum_Trig)
+    .sampleNum_Begin(sampleNumber_Begin),
+    .sampleNum_End(sampleNumber_End),
+    .sampleNum_Trig(sampleNumber_Trig)
 );
 
 endmodule
