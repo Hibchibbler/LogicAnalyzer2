@@ -45,10 +45,12 @@ ProcessCommand:
       LogCap CmdCode CMD_LOGCAP_START
       while (!LogCap.ACK){}
       LogCap CmdCode CMD_LOGCAP_ACK
+      while (LogCap.ACK){}
      case Abort
       LogCap CmdCode CMD_LOGCAP_ABORT
       while (!LogCap.ACK){}
       LogCap CmdCode CMD_LOGCAP_ACK
+      while (LogCap.ACK){}
      case Configure Trigger
       index = 1
       
