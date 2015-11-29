@@ -46,7 +46,15 @@ module LogicCaptureTop #(
     output                           write_enable,
     output [31:0]                    sample_number,
     input                            pageFull
+    
+    input has_return_data,
+    input [127:0] return_data,
+    output get_return_data,
+    output [27:0] read_sample_address
 );
+
+// States for data consumer machine
+localparam cIDLE = 3'b000, cWAIT_DATA = 3'b001, cLOAD_DATA_L = 3'b010, cWAIT_ACK_L = 3'b011, cLOAD_DATA_U = 3'b100, cWAIT_ACK_U = 3'b101;
 
 // Function code definitions
 localparam  CMD_NOP                 = 8'h00,
@@ -64,13 +72,15 @@ reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
 reg [SAMPLE_WIDTH-1:0] sampleData;
 
+reg readbackMode;
 reg start;
 reg abort;
+reg readTrace;
 reg cmdReset;
 reg acknowledge;
 wire logCapReset;
 assign logCapReset = reset | cmdReset;
-
+reg [2:0] consumerState, consumerNextState;
 /* Local Configuration Registers */
 /* - Buffer Configuration - */
 reg [31:0]             maxSampleCount;
@@ -86,11 +96,14 @@ reg                    edgeType;
 reg                    edgeTriggerEnable;
 
 // some status data
-wire [31:0] sampleNumber_Begin,
-wire [31:0] sampleNumber_End,
-wire [31:0] sampleNumber_Trig,
-wire [31:0] traceSizeBytes
-wire postTrigger,preTrigger,idle;
+wire [31:0] sampleNumber_Begin;
+wire [31:0] sampleNumber_End;
+wire [31:0] sampleNumber_Trig;
+wire [31:0] traceSizeBytes;
+wire [31:0] readSampleNumber;
+wire postTrigger, preTrigger,idle;
+wire reading_trace_data;
+wire got_trace_data;
 
 // assign the status register
 assign status = {4'b0000, acknowledge, postTrigger, preTrigger, idle};
@@ -99,6 +112,29 @@ always @(posedge clk) begin
     if (reset) begin
         resetMe;
     end else begin
+        if (readbackMode) begin
+            if (consumerState == cLOAD_DATA_U) begin
+                regOut7 <= return_data[127:120];
+                regOut6 <= return_data[119:112];
+                regOut5 <= return_data[111:104];
+                regOut4 <= return_data[103:96];
+                regOut3 <= return_data[95:88];
+                regOut2 <= return_data[87:80];
+                regOut1 <= return_data[79:72];
+                regOut0 <= return_data[71:64];
+                acknowledgeCmd;
+            end else if (consumerState == cLOAD_DATA_L) begin
+                regOut7 <= return_data[63:56];
+                regOut6 <= return_data[55:48];
+                regOut5 <= return_data[47:40];
+                regOut4 <= return_data[39:32];
+                regOut3 <= return_data[31:24];
+                regOut2 <= return_data[23:16];
+                regOut1 <= return_data[15:8];
+                regOut0 <= return_data[7:0];
+                acknowledgeCmd;
+            end
+        end
         if (command_strobe) begin
             currentCommand <= command;
         end else begin
@@ -107,17 +143,19 @@ always @(posedge clk) begin
     end
 end
 
-// Handle start/abort/reset pulses into LogCap
+// Handle start/abort/readTrace/reset pulses into LogCap
 always @(posedge clk) begin
     if (reset) begin
-        start    <= 1'b0;
-        abort    <= 1'b0;
-        cmdReset <= 1'b0;
+        start     <= 1'b0;
+        abort     <= 1'b0;
+        cmdReset  <= 1'b0;
+        readTrace <= 1'b0;
     end else begin
         case(currentCommand)
-            CMD_START: start <= 1'b1;
-            CMD_ABORT: abort <= 1'b1;
-            CMD_RESET: cmdReset <= 1'b1;
+            CMD_START:           start <= 1'b1;
+            CMD_ABORT:           abort <= 1'b1;
+            CMD_RESET:           cmdReset <= 1'b1;
+            CMD_READ_TRACE_DATA: readTrace <= 1'b1;
             default:   begin
                          cmdReset <= 1'b0;
                          // Hold abort until
@@ -155,6 +193,7 @@ begin
     currentCommand           <= CMD_NOP;
     maxSampleCount           <= 32'd100;
     preTriggerSampleCountMax <= 32'd0;
+    readbackMode             <= 32'd0;
 end
 endtask
 
@@ -216,6 +255,82 @@ LogCap #(
     .traceSizeBytes(traceSizeBytes)
 );
 
+sampleToAdx #(
+    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH),
+) adxConversion(
+    .sample_num(readSampleNumber),
+    .adx(read_sample_address)
+);
+
+analyzerReadbackFSM (
+    .clk(clk),
+    .reset(logCapReset),
+    .idle(idle),
+    .read_trace_data(read_trace_data),  
+    .readSampleNumber(readSampleNumber),
+    .read_req(read_req),
+    .read_allowed(read_allowed),
+    .sampleNumber_Begin(sampleNumber_Begin),
+    .sampleNumber_End(sampleNumber_End)
+);
+
+always @(posedge clk) begin
+    if (logCapReset) begin
+        consumerState <= cIDLE;
+    end else begin
+        consumerState <= consumerNextState;
+    end
+end
+
+always @(*) begin
+    case(consumerState)
+        cIDLE:      begin
+                        if (idle & read_trace_data)
+                            consumerNextState = cWAIT_DATA;
+                        else
+                            consumerNextState = cIDLE;
+                    end
+        cWAIT_DATA: begin
+                        if (has_return_data)
+                            consumerNextState = cLOAD_DATA_L;
+                        else
+                            consumerNextState = cWAIT_DATA;
+                    end
+        cLOAD_DATA_L: begin
+                        consumerNextState = cWAIT_ACK_L;
+                    end
+        cWAIT_ACK_L:  begin
+                        if (acknowledge)
+                            consumerNextState = cWAIT_ACK_L;
+                        else
+                            consumerNextState = cLOAD_DATA_U;
+        cLOAD_DATA_U: begin
+                        consumerNextState = cWAIT_ACK_U;
+                    end
+        cWAIT_ACK_U:  begin
+                        if (acknowledge)
+                            consumerNextState = cWAIT_ACK_U;
+                        else
+                            consumerNextState = cWAIT_DATA;
+                    end
+    endcase
+end
+
+always @(*) begin
+    get_return_data = 1'b0;
+    case(consumerState)
+        cIDLE:      begin
+                    end
+        cWAIT_DATA: begin
+                        get_return_data = has_return_data;
+                    end
+        cLOAD_DATA: begin
+                    end
+        cWAIT_ACK:  begin
+                    end
+    endcase
+end
+
 /*  BEGIN COMMAND TASK DEFINITIONS  */
 
 task clearAck;
@@ -259,7 +374,7 @@ endtask
 
 task executeReadTraceData;
 begin
-
+    readbackMode <= 1'b1;
 end
 endtask
 
