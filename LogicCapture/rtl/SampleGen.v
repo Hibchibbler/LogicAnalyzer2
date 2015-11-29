@@ -49,7 +49,8 @@ module SampleGen #(
     // Data about sample numbers
     output reg [31:0] sampleNum_Begin,
     output reg [31:0] sampleNum_End,
-    output reg [31:0] sampleNum_Trig
+    output reg [31:0] sampleNum_Trig,
+    output reg [31:0] traceSizeBytes
 );
 
 localparam TRANSITION_COUNTER_WIDTH = SAMPLE_PACKET_WIDTH - SAMPLE_WIDTH;
@@ -181,6 +182,7 @@ always @(*) begin
     end
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
+    traceSizeBytes        = capturedSampleCount*NUM_BYTES_PER_PACKET;
     if (postTrigger) begin
         complete = (totalSamplesTaken === maxSampleCount);
     end else begin
