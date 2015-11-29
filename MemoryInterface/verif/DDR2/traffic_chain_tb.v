@@ -84,7 +84,8 @@ module traffic_chain_tb;
           
     /************************ END WIRE/REG DECLARATIONS *********************/
 
-    
+
+    // Generate random sample data
     reg [15:0] sampleData;
     reg [4:0] flipCount;
     always @(posedge pad_clk) begin
@@ -105,23 +106,12 @@ module traffic_chain_tb;
             end
         end
     end
-
-    localparam TRAFFIC_GEN_DELAY = 80000000;
-    reg traffic_gen_enable;
-    initial begin
-        traffic_gen_enable = 1'b0;
-        #TRAFFIC_GEN_DELAY traffic_gen_enable = 1'b1;
-        #(CLOCK_PERIOD_IN*2) traffic_gen_enable = 1'b0;
-    end
-    
-    wire [15:0] sw;
-    assign sw = {15'b00000000000000, traffic_gen_enable};
         
     nexys4fpga top (
         .clk(pad_clk),
         .btnCpuReset(pad_resetn),
         .sampleData_async(sampleData),
-        .sw(sw),
+        
         // DDR2 Pins
         .ddr2_dq(ddr2_dq_fpga),
         .ddr2_dqs_n(ddr2_dqs_n_fpga),

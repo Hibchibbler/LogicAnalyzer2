@@ -15,14 +15,14 @@ module LogicCaptureTop #(
     
     // Communication interface to HUB
     // 8 Input Registers
-    input wire [7:0]                regIn0,
-    input wire [7:0]                regIn1,
-    input wire [7:0]                regIn2,
-    input wire [7:0]                regIn3,
-    input wire [7:0]                regIn4,
-    input wire [7:0]                regIn5,
-    input wire [7:0]                regIn6,
-    input wire [7:0]                regIn7,
+    input [7:0]                regIn0,
+    input [7:0]                regIn1,
+    input [7:0]                regIn2,
+    input [7:0]                regIn3,
+    input [7:0]                regIn4,
+    input [7:0]                regIn5,
+    input [7:0]                regIn6,
+    input [7:0]                regIn7,
     
     // 8 Output Registers
     output reg [7:0]                regOut0,
@@ -35,22 +35,24 @@ module LogicCaptureTop #(
     output reg [7:0]                regOut7,
     
     // Command input from HUB
-    input wire [7:0]                command,
-    input wire                      command_strobe,
+    input [7:0]                command,
+    input                      command_strobe,
     
     // Special output - status register
-    output     [7:0]                status
+    output     [7:0]                status,
     
     // Interface to memory
     output [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
     output                           write_enable,
     output [31:0]                    sample_number,
-    input                            pageFull
+    input                            pageFull,
     
-    input has_return_data,
+    input         has_return_data,
     input [127:0] return_data,
-    output get_return_data,
-    output [27:0] read_sample_address
+    output        get_return_data,
+    output        read_req,
+    input         read_allowed,
+    output [26:0] read_sample_address
 );
 
 // Function code definitions
@@ -63,12 +65,14 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_READ_TRACE_SIZE     = 8'h06,
             CMD_READ_TRIGGER_SAMP   = 8'h07,
             CMD_ACK                 = 8'h08,
-            CMD_RESET               = 8'h09;
+            CMD_RESET               = 8'h09,
+            CMD_READ_TRIGGER_SAMPLE = 8'h10;
 
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
 reg [SAMPLE_WIDTH-1:0] sampleData;
 
+reg [7:0] currentCommand;
 reg readbackMode;
 reg start;
 reg abort;
@@ -180,12 +184,12 @@ endtask
 
 task executeCommand;
 begin
-   case (currentCmd)
+   case (currentCommand)
         CMD_START:               executeStart;
         CMD_ABORT:               executeAbort;
-        CMD_TRIGGER_CONFIGURE:   executeConfigTrigger
+        CMD_TRIGGER_CONFIGURE:   executeConfigTrigger;
         CMD_BUFFER_CONFIGURE:    executeConfigBuffer;
-        CMD_READ_TRACE_DATA:     executeReadTraceData
+        CMD_READ_TRACE_DATA:     executeReadTraceData;
         CMD_ACK:                 clearAck;
         CMD_READ_TRACE_SIZE:     executeReadTraceSize;
         CMD_READ_TRIGGER_SAMPLE: executeReadTriggerSample;
@@ -225,7 +229,6 @@ LogCap #(
     .idle(idle),
     .start(start),
     .abort(abort),
-    .status(status),
     .samplePacket(samplePacket),
     .write_enable(write_enable),
     .sample_number(sample_number),
@@ -237,13 +240,13 @@ LogCap #(
 );
 
 sampleToAdx #(
-    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH),
+    .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH)
 ) adxConversion(
     .sample_num(readSampleNumber),
     .adx(read_sample_address)
 );
 
-analyzerReadbackFSM (
+analyzerReadbackFSM readBackFsm(
     .clk(clk),
     .reset(logCapReset),
     .idle(idle),
@@ -255,7 +258,7 @@ analyzerReadbackFSM (
     .sampleNumber_End(sampleNumber_End)
 );
 
-dataDumpFSM (
+dataDumpFSM dumpFSM(
     .clk(clk),
     .reset(logCapReset),
     .dumpCmd(readTrace),
@@ -319,9 +322,9 @@ begin
     currentCommand           <= CMD_BUFFER_CONFIGURE;
     maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
     preTriggerSampleCountMax <= {regIn7, regIn6, regIn5, regIn4};
-    ackowledgeCmd;
+    acknowledgeCmd;
 end
-endtask;
+endtask
 
 task executeConfigTrigger;
 begin
