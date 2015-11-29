@@ -58,6 +58,9 @@ reg [63:0] rd_data_capture;
 reg rd_data_fifo_wren;
 reg adx_pending_rden;
 
+wire get_return_data_legal;
+assign get_return_data_legal = get_return_data & return_data_available;
+
 wire return_data_empty;
 wire adx_stack_empty;
 wire [5:0] pending_adx_count;
@@ -194,7 +197,7 @@ rd_data_fifo ird_data_fifo (
     .clk(clk),
     .srst(reset),
     .data_count(rd_data_count),
-    .rd_en(get_return_data),
+    .rd_en(get_return_data_legal),
     .wr_en(rd_data_fifo_wren),
     .din({pending_adx_out, chunk2, chunk1}),
     .dout({return_adx, return_data}),
