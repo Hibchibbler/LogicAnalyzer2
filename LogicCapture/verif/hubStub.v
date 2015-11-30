@@ -66,13 +66,13 @@ initial sequenceComplete = 1'b0;
 task commandSequence;
 begin
     configBuffer(.preTriggerCount(20),
-                 .totalSampleCount(110));
-    configTriggers(.edgeTriggerEnable(TRUE),
+                 .totalSampleCount(112));
+    configTriggers(.edgeTriggerEnable(FALSE),
                    .edgeTriggerChannel(2),
                    .edgeTriggerType(POS),
                    .patternTriggerEnable(TRUE),
-                   .desiredPattern(16'b1100110010011101),
-                   .dontCare(16'hFFFA),
+                   .desiredPattern(16'h00ff),
+                   .dontCare(16'hff00),
                    .activeChannels(16'hffff));
     issueCmd(CMD_START);
     $fdisplay(cmdLog, "Start Command Issued, waiting for idle state..");
@@ -178,11 +178,14 @@ begin
     repeat(numBytes/8) begin
         command <= CMD_READ_TRACE_DATA;
         strobeCmd;
+        @(posedge clk);
         wait(ack);
-        sampleData <= {regOut7, regOut6, regOut5, regOut4, regOut3, regOut2, regOut1, regOut0};
+        sampleData = {regOut7, regOut6, regOut5, regOut4, regOut3, regOut2, regOut1, regOut0};
         $fdisplay(cmdLog, "Retrieved Sample Data: %h", sampleData);
         command    <= CMD_ACK;
         strobeCmd;
+        @(posedge clk);
+        wait(!ack);
     end
 end
 endtask
