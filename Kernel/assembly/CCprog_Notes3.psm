@@ -55,7 +55,17 @@ CONSTANT    INVLOWNIB,      0F      ; Invert low nibble of byte
 CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
 CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
 CONSTANT    SP_TEMP2,       22      ;
-CONSTANT    SP_BUFFER_INDEX 23
+CONSTANT    SP_BUFFER_INDEX,23
+
+CONSTANT    SP_TRACE_SIZE0, 24
+CONSTANT    SP_TRACE_SIZE1, 25
+CONSTANT    SP_TRACE_SIZE2, 26
+CONSTANT    SP_TRACE_SIZE3, 27
+
+CONSTANT    SP_TRANSFERRED0, 28
+CONSTANT    SP_TRANSFERRED1, 29
+CONSTANT    SP_TRANSFERRED2, 2A
+CONSTANT    SP_TRANSFERRED3, 2B
 
 ; Output Port Addresses
 CONSTANT PA_WRITE_LOGCAP_REGISTER0, 00 
@@ -117,21 +127,21 @@ CONSTANT CMD_CC_CMD_SIZE,          09 ;Header+Payload  (bytes)
 
 WaitForAck:
  WaitLoop:    
-    INPUT s0, PA_READ_LOGCAP_STATUS
-    TEST  s0, 00001000'b          ;LogCap Ack Asserted?
-    JUMP  Z, WaitLoop:
+    INPUT   s0, PA_READ_LOGCAP_STATUS
+    TEST    s0, 00001000'b          ;LogCap Ack Asserted?
+    JUMP    Z, WaitLoop:
     RETURN
 
 WaitForNonAck:
  WaitLoop:    
-    INPUT s0, PA_READ_LOGCAP_STATUS
-    TEST s0, 00001000'b          ;LogCap Ack Deasserted?
-    JUMP NZ, WaitLoop:
+    INPUT   s0, PA_READ_LOGCAP_STATUS
+    TEST    s0, 00001000'b          ;LogCap Ack Deasserted?
+    JUMP    NZ, WaitLoop:
     RETURN    
     
 IsUartDataPresent:
-    INPUT s0, PA_READ_UART_STATUS
-    TEST s0, 00000011'b          ; Rx Data Present?   
+    INPUT   s0, PA_READ_UART_STATUS
+    TEST    s0, 00001000'b          ; Rx Data Present?   
     RETURN
 
 
@@ -141,100 +151,94 @@ IsUartDataPresent:
 ; -----------------------------------------------------------------------------    
 ADDRESS 000
 entrypt:
-    JUMP    Prologue                        ; workaround to avoid location 3 corruption
-    JUMP    Prologue                        ; by Vivado Hardware Manager.  Bug was flagged by
-    JUMP    Prologue                        ; Ken Chapman and is known to be in 2014.2
-    JUMP    Prologue                        ; Address 003 can be corrupted by Vivado HW manager
+    JUMP    Prologue                    ; workaround to avoid location 3 corruption
+    JUMP    Prologue                    ; by Vivado Hardware Manager.  Bug was flagged by
+    JUMP    Prologue                    ; Ken Chapman and is known to be in 2014.2
+    JUMP    Prologue                    ; Address 003 can be corrupted by Vivado HW manager
                                                     ;
 Prologue:
-    NAMEREG sF,                         index ;for clarity. The register that holds the value of the: current index into the SP buffer, where we store partial commands from Frontned. We use 00 to 09.
-    NAMEREG sE,                         datum ;for clarity.
 
     LOAD    s1,     00                  ; clear the semaphore
     STORE   s1,     SP_SEM              ;
-    STORE   s1,     SP_BUFFER_INDEX
+    STORE   s1,     SP_BUFFER_INDEX     ; zero the sp buffer (used for incoming uart data) (we will use scratch pad memory to store bytes until there are enough to process a command)
 
     ENABLE  INTERRUPT                   ; get the ball rolling
     
 InitializeFirmwareLoop:
-    LOAD bufferIndex, 00
-FirmwareLoop:
-    CALL IsUartDataPresent          ;Sets Zero Flag is no data present...
-    JUMP Z, CheckCmd                ;No data present, goto CheckCmd
-    INPUT datum, PA_READ_UART_DATA  ;data is present, add to buffer
-    STORE datum, (bufferIndex)
-    ADD bufferIndex, 01
+    
+FirmwareLoop:    
+    CALL    IsUartDataPresent           ;Sets Zero Flag is no data present...
+    JUMP    Z, CheckCmd                 ;No data present, goto CheckCmd
+    INPUT   s0, PA_READ_UART_DATA       ;data is present, add to buffer
+AddToBuffer:
+    FETCH   s1, SP_BUFFER_INDEX         ;Fetch index, Store Data,Increment index, Store index
+    STORE   s0, (s1)
+    ADD     s1, 01
+    STORE   s1, SP_BUFFER_INDEX
 CheckCmd:
-    COMPARE bufferIndex, CMD_CC_CMD_SIZE
-    JUMP Z, ProcessCommand          ;We have a full command, process it.
-    JUMP    Upkeep                  ;We do not have a full command, nothing to process.
+    FETCH   s0, SP_BUFFER_INDEX
+    COMPARE s0, CMD_CC_CMD_SIZE
+    JUMP    Z,      ProcessCommand      ;We have a full command. Go figure out what it is, and then process it.
+    JUMP    Upkeep                      ;We do not have a full command, nothing to process. do upkeep.
 ProcessCommand:
-    LOAD index, 00
-    FETCH cmd, (index)
+    LOAD    s0,  00
+    FETCH   s1,    (s0)
 ProcessIfStartCmd:
-    COMPARE cmd, CMD_CC_START
-    JUMP NZ, ProcessIfAbortCmd
-    ; Process Start
-    CALL ProcessStart
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_START
+    JUMP    NZ,     ProcessIfAbortCmd    
+    CALL    ProcessStart                ; Process Start
+    JUMP    DoneProcessing
 ProcessIfAbortCmd:
-    COMPARE cmd, CMD_CC_ABORT
-    JUMP NZ, ProcessIfStatusCmd
-    ; Process Abort
-    CALL ProcessAbort
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_ABORT
+    JUMP    NZ,     ProcessIfStatusCmd
+    CALL    ProcessAbort                ; Process Abort
+    JUMP    DoneProcessing
 ProcessIfStatusCmd:
-    COMPARE cmd, CMD_CC_STATUS
-    JUMP NZ, ProcessIfTrigConfCmd
-    ; Process Status request
-    CALL ProcessStatus
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_STATUS
+    JUMP    NZ,     ProcessIfTrigConfCmd    
+    CALL    ProcessStatus               ; Process Status request
+    JUMP    DoneProcessing
 ProcessIfTrigConfCmd:
-    COMPARE cmd, CMD_CC_TRIG_CONFIGURE
-    JUMP NZ, ProcessIfBuffConfCmd
-    ; Process Trigger Configuration
-    CALL ProcessTrigConf
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_TRIG_CONFIGURE
+    JUMP    NZ,     ProcessIfBuffConfCmd
+    CALL    ProcessTrigConf             ; Process Trigger Configuration
+    JUMP    DoneProcessing
 ProcessIfBuffConfCmd:
-    COMPARE cmd, CMD_CC_BUFF_CONFIGURE
-    JUMP NZ, ProcessIfDumpCmd
-    ; Process Buffer Configuration
-    CALL ProcessBuffConf
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_BUFF_CONFIGURE
+    JUMP    NZ,     ProcessIfDumpCmd
+    CALL    ProcessBuffConf             ; Process Buffer Configuration
+    JUMP    DoneProcessing
 ProcessIfDumpCmd:
-    COMPARE cmd, CMD_CC_DUMP
-    JUMP NZ, ProcessIfTraceSize
-    ; Process Dump
-    CALL ProcessDump
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_CC_DUMP
+    JUMP    NZ,     ProcessIfTraceSize
+    CALL    ProcessDump                 ; Process Dump
+    JUMP    DoneProcessing
 ProcessIfTraceSize:
-    COMPARE cmd, CMD_TRACE_SIZE
-    JUMP NZ, ProcessIfTriggerSampleCmd
-    ; Process the Trace Size request
-    CALL ProcessTraceSize
-    JUMP DoneProcessing
+    COMPARE s1,    CMD_TRACE_SIZE
+    JUMP    NZ,     ProcessIfTriggerSampleCmd
+    CALL    ProcessTraceSize            ; Process the Trace Size request
+    JUMP    DoneProcessing
 ProcessIfTriggerSample:
-    COMPARE cmd, CMD_TRIGGER_SAMPLE
-    ; Process Trigger Sample request
-    CALL ProcessTriggerSample
-    JUMP DoneProcessing    
+    COMPARE s1,    CMD_TRIGGER_SAMPLE
+    CALL    ProcessTriggerSample        ; Process Trigger Sample request
+    JUMP    DoneProcessing    
 DoneProcessing:  
     
 Upkeep:
-    FETCH   s6,     SP_SEM                  ;If interrupt fired, SP_SEM != 0
+    FETCH   s6,     SP_SEM              ;If interrupt fired, SP_SEM != 0
     COMPARE s6,     00      
-    JUMP    Z,      FirmwareLoopEnd         ;If not, then skip LED toggle
+    JUMP    Z,      FirmwareLoopEnd     ;If not, then skip LED toggle
     
-    FETCH s1, SP_LED_15_8                   ; So, toggle hi LEDs
-    XOR s1, FF
-    CALL LED_wrleds_hi
+    FETCH   s1,     SP_LED_15_8         ; So, toggle hi LEDs
+    XOR     s1,     FF
+    CALL    LED_wrleds_hi
     
-    FETCH   s6,             SP_SEM          ; prepare for next interrupt
-    SUB     s6,             01
-    STORE   s6,             SP_SEM     
+    FETCH   s6,     SP_SEM              ; prepare for next interrupt
+    SUB     s6,     01
+    STORE   s6,     SP_SEM     
 
 FirmwareLoopEnd:
-    JUMP FirmwareLoop
+    JUMP    FirmwareLoop
 ; -----------------------------------------------------------------------------
 ; MAIN LOOP Ends
 ; -----------------------------------------------------------------------------    
@@ -242,150 +246,213 @@ FirmwareLoopEnd:
 ; Functions Definitions Start
 ; -----------------------------------------------------------------------------            
 ProcessStart:
-    OUTPUT CMD_LOGCAP_START, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForNonAck
+    ;We received a Start from the Frontend.
+    ; Notify the LogCap that is should Start
+    OUTPUT  CMD_LOGCAP_START, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForNonAck
     RETURN
     
 ProcessAbort:
-    OUTPUT CMD_LOGCAP_ABORT, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForNonAck
+    ;We received an Abort from the Frontend.
+    ; Notify the LogCap that is should Abort
+    OUTPUT  CMD_LOGCAP_ABORT, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForNonAck
     RETURN
     
-ProcessTrigConf:
+ProcessTrigConf:    
+    ;We must load the trigger config info from
+    ; UART buffer into LogCap registers. 
+    ;Then we notify LogCap of our trespass
+    LOAD    s0, 01
 
-    
-    LOAD s0, 01
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER0
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER0
-
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER1
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER1
 
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER2
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER2
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER3
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER3
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER4
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER4
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER5
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER5
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER6
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER6
 
-    FETCH datum, (s0)
-    ADD s0, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER7
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER7
 
-    OUTPUT CMD_LOGCAP_TRIG_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we know that they read what we wrote
-    CALL WaitForNonAck
+    OUTPUT  CMD_LOGCAP_TRIG_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we know that they read what we wrote
+    CALL    WaitForNonAck
     RETURN
     
 ProcessBuffConf:
-    LOAD index, 01
+    ;We must load the buffer config info from
+    ; UART buffer into LogCap registers. 
+    ;Then we notify LogCap of our trespass
+    LOAD    s0, 01
 
-    FETCH datum, (index)
-    ADD index, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER0
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER0
 
-    FETCH datum, (index)
-    ADD index, 01;
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER1
+    FETCH   s1, (s0)
+    ADD     s0, 01;
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER1
 
-    FETCH datum, (index)
-    ADD index, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER2
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER2
 
-    FETCH datum, (index)
-    ADD index, 01
-    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER3
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER3
         
-    OUTPUT CMD_LOGCAP_BUFF_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForNonAck
+    OUTPUT  CMD_LOGCAP_BUFF_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForNonAck
     RETURN
 
 
 ProcessDump:
-    ; Figure out how much we need to read (total)
+    ; First, figure out the Total number of bytes we'll be readin from LogCap
+    ; Second, we begin to send a Dump message to the Frontend. 
+    ;  We start by sending a Dump header
+    ;  [cmdCode'(DUMP) |   Total bytes ] 
+    ;  [ 1 byte        |   4 bytes     ]
+    OUTPUT  CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size. byte 1
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1; byte 2
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2; byte 3
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3; byte 4
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL    WaitForNonAck
 
-    OUTPUT CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size. byte 1
-    INPUT s1, PA_READ_LOGCAP_REGISTER1; byte 2
-    INPUT s2, PA_READ_LOGCAP_REGISTER2; byte 3
-    INPUT s3, PA_READ_LOGCAP_REGISTER3; byte 4
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
-    CALL WaitForNonAck
-
-    total = payloadSize0<<24 & payloadSize1<<16 & payloadSize2<<8 & payloadSize3<<0
-    ;CALL SendHeaderToFrontend(DUMP, total)
-    OUTPUT CMD_CC_DUMP, PA_WRITE_UART_DATA
-    OUTPUT s0, PA_WRITE_UART_DATA      
-    OUTPUT s1, PA_WRITE_UART_DATA      
-    OUTPUT s2, PA_WRITE_UART_DATA      
-    OUTPUT s3, PA_WRITE_UART_DATA      
+    ;total = payloadSize0<<24 & payloadSize1<<16 & payloadSize2<<8 & payloadSize3<<0
+    ; Store Trace Length in SP
+    STORE s0, SP_TRACE_SIZE0
+    STORE s1, SP_TRACE_SIZE1
+    STORE s2, SP_TRACE_SIZE2
+    STORE s3, SP_TRACE_SIZE3
+    
+    ;Zero out our transfer count (in SP)
+    LOAD s4, 00
+    STORE s4, SP_TRANSFERRED0
+    STORE s4, SP_TRANSFERRED1
+    STORE s4, SP_TRANSFERRED2
+    STORE s4, SP_TRANSFERRED3
+    
+    ; Dump Header (Consumed by Frontend)
+    OUTPUT  CMD_CC_DUMP, PA_WRITE_UART_DATA
+    OUTPUT  s0, PA_WRITE_UART_DATA      
+    OUTPUT  s1, PA_WRITE_UART_DATA      
+    OUTPUT  s2, PA_WRITE_UART_DATA      
+    OUTPUT  s3, PA_WRITE_UART_DATA      
 
  DoChunkTransfer:
-
+    ; Then, Until all bytes have been transfered
+    ;  Read 8 bytes from LogCap
+    ;  Write 8 bytes (1 byte at a time) to Frontend
        
-    OUTPUT CMD_LOGCAP_DUMP, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
-    CALL WaitForAck              ; Wait for LogCap to acknowledge
-    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT s1, PA_READ_LOGCAP_REGISTER1
-    INPUT s2, PA_READ_LOGCAP_REGISTER2
-    INPUT s3, PA_READ_LOGCAP_REGISTER3      
-    INPUT s4, PA_READ_LOGCAP_REGISTER4
-    INPUT s5, PA_READ_LOGCAP_REGISTER5
-    INPUT s6, PA_READ_LOGCAP_REGISTER6
-    INPUT s7, PA_READ_LOGCAP_REGISTER7
+    OUTPUT  CMD_LOGCAP_DUMP, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
+    CALL    WaitForAck                                  ; Wait for LogCap to acknowledge
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0                ; Get 8 bytes of Dump Data
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3      
+    INPUT   s4, PA_READ_LOGCAP_REGISTER4
+    INPUT   s5, PA_READ_LOGCAP_REGISTER5
+    INPUT   s6, PA_READ_LOGCAP_REGISTER6
+    INPUT   s7, PA_READ_LOGCAP_REGISTER7
 
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
-    CALL WaitForNonAck               ; Wait for LogCap to acknowledge
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL    WaitForNonAck                               ; Wait for LogCap to acknowledge
 
-    OUTPUT s0, PA_WRITE_UART_DATA      
-    OUTPUT s1, PA_WRITE_UART_DATA      
-    OUTPUT s2, PA_WRITE_UART_DATA      
-    OUTPUT s3, PA_WRITE_UART_DATA     
-    OUTPUT s4, PA_WRITE_UART_DATA      
-    OUTPUT s5, PA_WRITE_UART_DATA      
-    OUTPUT s6, PA_WRITE_UART_DATA      
-    OUTPUT s7, PA_WRITE_UART_DATA
+    OUTPUT  s0, PA_WRITE_UART_DATA                      ; Send 8 bytes of Dump data to Frontend
+    OUTPUT  s1, PA_WRITE_UART_DATA      
+    OUTPUT  s2, PA_WRITE_UART_DATA      
+    OUTPUT  s3, PA_WRITE_UART_DATA     
+    OUTPUT  s4, PA_WRITE_UART_DATA      
+    OUTPUT  s5, PA_WRITE_UART_DATA      
+    OUTPUT  s6, PA_WRITE_UART_DATA      
+    OUTPUT  s7, PA_WRITE_UART_DATA
 
-    ADD transfered, 08 ;must carry
+    
+    ;Add 8 to transferred tally - 32bit values require us to use craZy carry mechanism
+    FETCH   s8, SP_TRANSFERRED0                          
+    ADD     s8, 08                              
+    STORE   s8, SP_TRANSFERRED0
+    
+    FETCH   s8, SP_TRANSFERRED1
+    ADDCY   s8, 00
+    STORE   s8, SP_TRANSFERRED1
+    
+    FETCH   s8, SP_TRANSFERRED2
+    ADDCY   s8, 00
+    STORE   s8, SP_TRANSFERRED2
+    
+    FETCH   s8, SP_TRANSFERRED3
+    ADDCY   s8, 00
+    STORE   s8, SP_TRANSFERRED3
+    
+    ;transferred - total != 0 ?  (crazy carrry shtuff)
+    FETCH   s8, SP_TRANSFERRED0
+    FETCH   s9, SP_TRACE_SIZE0                          
+    SUB     s8, s9                              
+    
+    FETCH   s8, SP_TRANSFERRED1
+    FETCH   s9, SP_TRACE_SIZE1
+    SUBCY   s8, s9
+    
+    FETCH   s8, SP_TRANSFERRED2
+    FETCH   s9, SP_TRACE_SIZE2
+    SUBCY   s8, s9
+    
+    FETCH   s8, SP_TRANSFERRED3
+    FETCH   s9, SP_TRACE_SIZE3
+    SUBCY   s8, s9
+    
+    JUMP NZ, DoChunkTransfer    ; based on zero flag from last SUBCY. transferred - total != 0
+                                ; transferred - total == 0
+                                ; We've finished transferring all bytes from LogCap
+                                ; to Frontend.
+    OUTPUT  CMD_LOGCAP_RESET, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
+    CALL    WaitForAck
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForNonAck
 
-    COMPARE transfered, total ;must carry; if carry set, transfered < total
-    JUMP C, DoChunkTransfer   ; so, transfer another chunk.
-
-    OUTPUT CMD_LOGCAP_RESET, PA_WRITE_LOGCAP_COMMAND  ;otherwise, we are done transfering chunks. reset LogCap.
-    CALL WaitForAck
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForNonAck
-
-    LOAD index, 00                           ;reset buffer for next command
+    LOAD index, 00                                      ; Reset incoming UART buffer for next command
     RETURN
     
 
 ProcessStatus:    
+    ; Read LogCap Status Register
+    ; And send it to the Frontend
+    
     ;Send Packet
     ; Header
     ;  Func Code      
@@ -408,72 +475,76 @@ ProcessStatus:
 
     
 ProcessTraceSize:
-    OUTPUT CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT s1, PA_READ_LOGCAP_REGISTER1
-    INPUT s2, PA_READ_LOGCAP_REGISTER2
-    INPUT s3, PA_READ_LOGCAP_REGISTER3
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
-    CALL WaitForNonAck
+    ; Get the Trace Size from LogCap
+    ; And send it to the Frontend
+    OUTPUT  CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL    WaitForNonAck
 
     ;total = traceSizeByte0<<24 & traceSizeByte1<<16 & traceSizeByte2<<8 & traceSizeByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD   s8, CMD_CC_TRACE_SIZE
-    OUTPUT s8, PA_WRITE_UART_DATA
+    LOAD    s8, CMD_CC_TRACE_SIZE
+    OUTPUT  s8, PA_WRITE_UART_DATA
     
     ;  Payload Size - 4 Bytes
-    LOAD s4, 04
-    LOAD s5, 00
-    LOAD s6, 00
-    LOAD s7, 00    
-    OUTPUT s4, PA_WRITE_UART_DATA          
-    OUTPUT s5, PA_WRITE_UART_DATA          
-    OUTPUT s6, PA_WRITE_UART_DATA          
-    OUTPUT s7, PA_WRITE_UART_DATA     
+    LOAD    s4, 04
+    LOAD    s5, 00
+    LOAD    s6, 00
+    LOAD    s7, 00    
+    OUTPUT  s4, PA_WRITE_UART_DATA          
+    OUTPUT  s5, PA_WRITE_UART_DATA          
+    OUTPUT  s6, PA_WRITE_UART_DATA          
+    OUTPUT  s7, PA_WRITE_UART_DATA     
     
     ; Payload
-    OUTPUT s0, PA_WRITE_UART_DATA
-    OUTPUT s1, PA_WRITE_UART_DATA
-    OUTPUT s2, PA_WRITE_UART_DATA
-    OUTPUT s3, PA_WRITE_UART_DATA
+    OUTPUT  s0, PA_WRITE_UART_DATA
+    OUTPUT  s1, PA_WRITE_UART_DATA
+    OUTPUT  s2, PA_WRITE_UART_DATA
+    OUTPUT  s3, PA_WRITE_UART_DATA
       
     RETURN
     
 ProcessTriggerSample:
-    OUTPUT CMD_LOGCAP_TRIGGER_SAMPLE, PA_WRITE_LOGCAP_COMMAND
-    CALL WaitForAck
-    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT s1, PA_READ_LOGCAP_REGISTER1
-    INPUT s2, PA_READ_LOGCAP_REGISTER2
-    INPUT s3, PA_READ_LOGCAP_REGISTER3
-    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
-    CALL WaitForNonAck
+    ; Get the Sample number that caused the trigger from LogCap
+    ; And send it to the Frontend
+    OUTPUT  CMD_LOGCAP_TRIGGER_SAMPLE, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForAck
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3
+    OUTPUT  CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL    WaitForNonAck
 
     ;total = triggerSampleByte0<<24 & triggerSampleByte1<<16 & triggerSampleByte2<<8 & triggerSampleByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD   s8, CMD_CC_TRIGGER_SAMPLE
-    OUTPUT s8, PA_WRITE_UART_DATA
+    LOAD    s8, CMD_CC_TRIGGER_SAMPLE
+    OUTPUT  s8, PA_WRITE_UART_DATA
     
     ;  Payload Size - 4 Bytes
-    LOAD s4, 04
-    LOAD s5, 00
-    LOAD s6, 00
-    LOAD s7, 00    
-    OUTPUT s4, PA_WRITE_UART_DATA          
-    OUTPUT s5, PA_WRITE_UART_DATA          
-    OUTPUT s6, PA_WRITE_UART_DATA          
-    OUTPUT s7, PA_WRITE_UART_DATA     
+    LOAD    s4, 04
+    LOAD    s5, 00
+    LOAD    s6, 00
+    LOAD    s7, 00    
+    OUTPUT  s4, PA_WRITE_UART_DATA          
+    OUTPUT  s5, PA_WRITE_UART_DATA          
+    OUTPUT  s6, PA_WRITE_UART_DATA          
+    OUTPUT  s7, PA_WRITE_UART_DATA     
     
     ; Payload
-    OUTPUT s0, PA_WRITE_UART_DATA
-    OUTPUT s1, PA_WRITE_UART_DATA
-    OUTPUT s2, PA_WRITE_UART_DATA
-    OUTPUT s3, PA_WRITE_UART_DATA
+    OUTPUT  s0, PA_WRITE_UART_DATA
+    OUTPUT  s1, PA_WRITE_UART_DATA
+    OUTPUT  s2, PA_WRITE_UART_DATA
+    OUTPUT  s3, PA_WRITE_UART_DATA
     RETURN
     
 
