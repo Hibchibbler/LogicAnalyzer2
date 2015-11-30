@@ -29,7 +29,12 @@ module hubStub (
     input [7:0]          status
 );
 
+// Number of clocks after reset is clear
+// to begin issuing commands
 parameter CMD_DELAY_CLKS = 50;
+// Number of clocks after the command
+// sequence to delay;
+parameter POST_DELAY = 20;
 
 // Function code definitions
 localparam  CMD_NOP                 = 8'h00,
@@ -49,18 +54,21 @@ assign ack = status[3];
 
 localparam POS = 1'b1, NEG = 1'b0, TRUE = 1'b1, FALSE = 1'b0;
 
+reg sequenceComplete;
+initial sequenceComplete = 1'b0;
+
 task commandSequence;
 begin
     configBuffer(.preTriggerCount(20),
                  .totalSampleCount(110));
     configTriggers(.edgeTriggerEnable(TRUE),
-                   .edgeTriggerChannel(8'd2),
+                   .edgeTriggerChannel(2),
                    .edgeTriggerType(POS),
-                   .patternTriggerEnable(FALSE),
-                   .desiredPattern(16'h0000),
+                   .patternTriggerEnable(TRUE),
+                   .desiredPattern(16'b1100110010011101),
                    .dontCare(16'h0000),
                    .activeChannels(16'hffff));
-    waitNClocks(10);
+    issueCmd(CMD_START);
 end
 endtask
 
@@ -68,9 +76,12 @@ always @(posedge clk) begin
     if (~resetn) begin
         resetMe;
     end else begin
-        waitNClocks(CMD_DELAY_CLKS);
-        commandSequence;
-        $finish;
+        if (~sequenceComplete) begin
+            waitNClocks(CMD_DELAY_CLKS);
+            commandSequence;
+            waitNClocks(POST_DELAY);
+            sequenceComplete = 1;
+        end
     end
 end
 
