@@ -112,7 +112,7 @@ wire load_l, load_u;
 
 // de-assert idle when start command is
 // being issued;
-assign idle = logIdle & ~start;
+assign idle = logIdle & ~start & (currentCommand != CMD_START);
 
 // assign the status register
 assign status      = {4'b0000, acknowledge, postTrigger, preTrigger, idle};
