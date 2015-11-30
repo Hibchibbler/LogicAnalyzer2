@@ -36,7 +36,7 @@ end
 
 // Number of clocks after reset is clear
 // to begin issuing commands
-parameter CMD_DELAY_CLKS = 50;
+parameter CMD_DELAY_CLKS = 8000;
 // Number of clocks after the command
 // sequence to delay;
 parameter POST_DELAY = 20;
@@ -72,12 +72,14 @@ begin
                    .edgeTriggerType(POS),
                    .patternTriggerEnable(TRUE),
                    .desiredPattern(16'b1100110010011101),
-                   .dontCare(16'h0000),
+                   .dontCare(16'hFFFA),
                    .activeChannels(16'hffff));
     issueCmd(CMD_START);
     $fdisplay(cmdLog, "Start Command Issued, waiting for idle state..");
     wait(idle);
+    readTriggerSample;
     dataReadback;
+    issueCmd(CMD_RESET);
 end
 endtask
 
@@ -153,6 +155,15 @@ begin
     regIn6 <= edgeTriggerChannel;
     regIn7 <= {5'b00000, edgeTriggerType, edgeTriggerEnable, patternTriggerEnable};
     issueCmd(CMD_TRIGGER_CONFIGURE);
+end
+endtask
+
+task readTriggerSample;
+reg [31:0] tSample;
+begin
+    issueCmd(CMD_READ_TRIGGER_SAMPLE);
+    tSample <= {regOut3, regOut2, regOut1, regOut0};
+    $fdisplay(cmdLog, "Read trigger sample value: %d", tSample);
 end
 endtask
 
