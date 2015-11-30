@@ -1,3 +1,9 @@
+/* Module provides the register interface to the command and
+ * control hub, encapsulate the base logic capturing peripheral,
+ * and the logic required to read back data from memory and transfer
+ * the data to the hub.
+ *
+ */
 module LogicCaptureTop #(
     // Parameter describes physical sample width (ie, max).
     // User may select SAMPLE_WIDTH or less active channels
@@ -74,11 +80,12 @@ reg [SAMPLE_WIDTH-1:0] sampleData;
 
 reg [7:0] currentCommand;
 reg readbackMode;
-reg start;
-reg abort;
-reg readTrace;
-reg cmdReset;
+wire start;
+wire abort;
+wire readTrace;
 reg acknowledge;
+
+wire cmdReset;
 wire logCapReset;
 
 /* Local Configuration Registers */
@@ -113,7 +120,6 @@ assign logCapReset = reset | cmdReset;
 
 // Register the applied command
 always @(posedge clk) begin
-    $display("RESET: %b  COMMAND: %h,  STROBE: %b   CURRENT COMMAND: %h", reset, command, command_strobe, currentCommand);
     if (reset) begin
         currentCommand <= CMD_NOP;
     end else begin
@@ -125,37 +131,49 @@ always @(posedge clk) begin
     end
 end
 
-// Handle start/abort/readTrace/reset pulses into LogCap
-always @(posedge clk) begin
-    if (reset) begin
-        start     <= 1'b0;
-        abort     <= 1'b0;
-        cmdReset  <= 1'b0;
-        readTrace <= 1'b0;
-    end else begin
-        case(currentCommand)
-            CMD_START:           start <= 1'b1;
-            CMD_ABORT:           abort <= 1'b1;
-            CMD_RESET:           cmdReset <= 1'b1;
-            CMD_READ_TRACE_DATA: readTrace <= 1'b1;
-            default:   begin
-                         cmdReset <= 1'b0;
-                         // Hold abort until
-                         // in the idle state
-                         if (abort) begin
-                            if (idle) begin
-                                abort <= 1'b0;
-                            end else begin
-                                abort <= 1'b1;
-                            end
-                         end else begin
-                            abort <= 1'b0;
-                         end
-                         start <= 1'b0;
-                       end
-        endcase
-    end
-end
+pulseGen startPulser(
+    .clk(clk),
+    .reset(reset),
+    .start(currentCommand == CMD_START),
+    // Minimum pulses
+    .pulseCount(32'd1),
+    // Wait signal before deaasserting (tie to 1 if no wait)
+    .waitOnMe(1'b1),
+    .pulse(start)
+);
+
+pulseGen abortPulser(
+    .clk(clk),
+    .reset(reset),
+    .start(currentCommand == CMD_ABORT),
+    // Minimum pulses
+    .pulseCount(32'd1),
+    // Wait signal before deaasserting (tie to 1 if no wait)
+    .waitOnMe(idle),
+    .pulse(abort)
+);
+
+pulseGen readTracePulser(
+    .clk(clk),
+    .reset(reset),
+    .start(currentCommand == CMD_READ_TRACE_DATA),
+    // Minimum pulses
+    .pulseCount(32'd1),
+    // Wait signal before deaasserting (tie to 1 if no wait)
+    .waitOnMe(1'b1),
+    .pulse(readTrace)
+);
+
+pulseGen resetPulser(
+    .clk(clk),
+    .reset(reset),
+    .start(currentCommand == CMD_RESET),
+    // Minimum pulses
+    .pulseCount(32'd1),
+    // Wait signal before deaasserting (tie to 1 if no wait)
+    .waitOnMe(1'b1),
+    .pulse(cmdReset)
+);
 
 always @(posedge clk) begin
     if (reset) begin
@@ -171,7 +189,7 @@ end
 task resetMe;
 begin
     desiredPattern           <= {SAMPLE_WIDTH{1'b0}};
-    activeChannels           <= {SAMPLE_WIDTH{1'b0}};
+    activeChannels           <= {SAMPLE_WIDTH{1'b1}};
     dontCareChannels         <= {SAMPLE_WIDTH{1'b1}};
     edgeChannel              <= 32'd0;
     patternTriggerEnable     <= 1'b0;
