@@ -102,6 +102,7 @@ begin
         command <= cmd;
         strobeCmd;
         ackBack;
+        @(posedge clk);
 end
 endtask
 
