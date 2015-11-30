@@ -29,8 +29,8 @@ localparam MAX_SAMPLE_NUMBER    = NUM_MEMORY_WORDS/NUM_WORDS_PER_PACKET-1;
 // A state machine to go through all samples
 // in memory and continually read them into the
 // FIFOs until there is no more data to get
-localparam IDLE = 1'b0, READING = 1'b1;
-reg state, nextState;
+localparam IDLE = 2'b00, READING = 2'b01, DONE = 2'b10;
+reg [1:0] state, nextState;
 reg moreData;
 
 reg [31:0] nextSample;
@@ -63,6 +63,7 @@ always @(posedge clk) begin
 end
 
 always @(*) begin
+    nextState = IDLE; //default
     case(state)
         IDLE:    begin
                     if (idle & read_trace_data)
@@ -76,12 +77,13 @@ always @(*) begin
                     end else begin
                         // No more data, make sure to request last sample set
                         if (read_allowed) begin
-                            nextState = IDLE;
+                            nextState = DONE;
                         end else begin
                             nextState = READING;
                         end
                     end
                  end
+        DONE:    nextState = DONE;
     endcase
 end
 
@@ -92,6 +94,8 @@ always @(*) begin
                  end
         READING: begin
                     read_req = 1'b1;
+                 end
+        DONE:    begin
                  end
     endcase
 end
@@ -105,12 +109,14 @@ always @(posedge clk) begin
     end else begin
         if (state == IDLE) begin
             readSampleNumber <= sampleNumber_Begin;
-        end else begin // READING
+        end else if (state == READING) begin // READING
             if (read_allowed) begin
                 readSampleNumber <= nextSample;
             end else begin
                 readSampleNumber <= readSampleNumber;
             end
+        end else begin
+            readSampleNumber <= readSampleNumber;
         end
     end
 end
