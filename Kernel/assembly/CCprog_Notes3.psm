@@ -51,6 +51,25 @@ CONSTANT    INVLOWNIB,      0F      ; Invert low nibble of byte
 
 
 ; Scratch Pad Storage
+;UART input buffer 
+; Buffer bytes that are a part of commands from Frontend
+; Every command from Frontend is 9 Bytes.
+;  1 byte is Command Code, 8 Bytes are payload.
+;  C&C is responsible for knowing what the format
+;  of the payload is, based on command code.
+CONSTANT    SP_UART_COMMAND_BYTE0,  00   
+CONSTANT    SP_UART_COMMAND_BYTE1,  01
+CONSTANT    SP_UART_COMMAND_BYTE2,  02
+CONSTANT    SP_UART_COMMAND_BYTE3,  03
+CONSTANT    SP_UART_COMMAND_BYTE4,  04
+CONSTANT    SP_UART_COMMAND_BYTE5,  05
+CONSTANT    SP_UART_COMMAND_BYTE6,  06
+CONSTANT    SP_UART_COMMAND_BYTE7,  07
+CONSTANT    SP_UART_COMMAND_BYTE8,  08
+CONSTANT    SP_UART_COMMAND_BYTE9,  09
+CONSTANT    SP_UART_COMMAND_BYTE10, 0A
+
+
 CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
 CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
 CONSTANT    SP_TEMP2,       22      ;
@@ -121,15 +140,16 @@ CONSTANT CMD_FE_DUMP,              05
 CONSTANT CMD_FE_TRACE_SIZE,        07
 CONSTANT CMD_FE_TRIGGER_SAMPLE,    08
 
-
-CONSTANT FE_CMD_SIZE,          09 ;Header+Payload  (bytes)
+; This refers to the expected and fixed size
+; of commands coming from the frontend. 9 bytes.
+CONSTANT COMMAND_SIZE,          09 ;Header+Payload  (bytes)
 
 
 ; -----------------------------------------------------------------------------
 ; MAIN LOOP Start
 ; -----------------------------------------------------------------------------    
 ADDRESS 000
-entrypt:
+EntryPoint:
     JUMP    Prologue                    ; workaround to avoid location 3 corruption
     JUMP    Prologue                    ; by Vivado Hardware Manager.  Bug was flagged by
     JUMP    Prologue                    ; Ken Chapman and is known to be in 2014.2
@@ -147,74 +167,76 @@ InitializeFirmwareLoop:
     
 FirmwareLoop:    
     CALL    IsUartDataPresent           ;Sets Zero Flag is no data present...
-    JUMP    Z, CheckCmd                 ;No data present, goto CheckCmd
-    INPUT   s0, PA_READ_UART_DATA       ;data is present, add to buffer
+    JUMP    Z, CheckCmd                 ;No data present, goto CheckCmd    
 AddToBuffer:
+    INPUT   s0, PA_READ_UART_DATA       ;data is present, add to buffer
     FETCH   s1, SP_BUFFER_INDEX         ;Fetch index, Store Data,Increment index, Store index
     STORE   s0, (s1)
     ADD     s1, 01
     STORE   s1, SP_BUFFER_INDEX
-CheckCmd:
+CheckCmd:                               ; If we have 9 bytes, then we can process the command.
     FETCH   s0, SP_BUFFER_INDEX
-    COMPARE s0, FE_CMD_SIZE
-    JUMP    Z,      ProcessCommand      ;We have a full command. Go figure out what it is, and then process it.
+    COMPARE s0, COMMAND_SIZE
+    JUMP    Z,  ProcessCommand          ;We have a full command. Go figure out what it is, and then process it.
     JUMP    Upkeep                      ;We do not have a full command, nothing to process. do upkeep.
 ProcessCommand:
     LOAD    s0,  00
-    FETCH   s1,    (s0)
+    FETCH   s1, (s0)                    ; pull out the command code
 ProcessIfStartCmd:
-    COMPARE s1,    CMD_FE_START
-    JUMP    NZ,     ProcessIfAbortCmd    
-    CALL    ProcessStart                ; Process Start
+    COMPARE s1, CMD_FE_START            ; start?
+    JUMP    NZ, ProcessIfAbortCmd    
+    CALL    ProcessStart                ; yup (these process functions are blocking)
     JUMP    DoneProcessing
 ProcessIfAbortCmd:
-    COMPARE s1,    CMD_FE_ABORT
-    JUMP    NZ,     ProcessIfStatusCmd
+    COMPARE s1, CMD_FE_ABORT            
+    JUMP    NZ, ProcessIfStatusCmd
     CALL    ProcessAbort                ; Process Abort
     JUMP    DoneProcessing
 ProcessIfStatusCmd:
-    COMPARE s1,    CMD_FE_STATUS
-    JUMP    NZ,     ProcessIfTrigConfCmd    
+    COMPARE s1, CMD_FE_STATUS
+    JUMP    NZ, ProcessIfTrigConfCmd    
     CALL    ProcessStatus               ; Process Status request
     JUMP    DoneProcessing
 ProcessIfTrigConfCmd:
-    COMPARE s1,    CMD_FE_TRIG_CONFIGURE
-    JUMP    NZ,     ProcessIfBuffConfCmd
+    COMPARE s1, CMD_FE_TRIG_CONFIGURE
+    JUMP    NZ, ProcessIfBuffConfCmd
     CALL    ProcessTrigConf             ; Process Trigger Configuration
     JUMP    DoneProcessing
 ProcessIfBuffConfCmd:
-    COMPARE s1,    CMD_FE_BUFF_CONFIGURE
-    JUMP    NZ,     ProcessIfDumpCmd
+    COMPARE s1, CMD_FE_BUFF_CONFIGURE
+    JUMP    NZ, ProcessIfDumpCmd
     CALL    ProcessBuffConf             ; Process Buffer Configuration
     JUMP    DoneProcessing
 ProcessIfDumpCmd:
-    COMPARE s1,    CMD_FE_DUMP
-    JUMP    NZ,     ProcessIfTraceSizeCmd
+    COMPARE s1, CMD_FE_DUMP
+    JUMP    NZ, ProcessIfTraceSizeCmd
     CALL    ProcessDump                 ; Process Dump
     JUMP    DoneProcessing
 ProcessIfTraceSizeCmd:
-    COMPARE s1,    CMD_FE_TRACE_SIZE
-    JUMP    NZ,     ProcessIfTriggerSampleCmd
+    COMPARE s1, CMD_FE_TRACE_SIZE
+    JUMP    NZ, ProcessIfTriggerSampleCmd
     CALL    ProcessTraceSize            ; Process the Trace Size request
     JUMP    DoneProcessing
 ProcessIfTriggerSampleCmd:
-    COMPARE s1,    CMD_FE_TRIGGER_SAMPLE
+    COMPARE s1, CMD_FE_TRIGGER_SAMPLE
     CALL    ProcessTriggerSample        ; Process Trigger Sample request
     JUMP    DoneProcessing    
 DoneProcessing:  
+    LOAD    s1, 00                      ; Reset Buffer Index for next cmd
+    STORE   s1, SP_BUFFER_INDEX
     
 Upkeep:
-    FETCH   s6,     SP_SEM              ;If interrupt fired, SP_SEM != 0
-    COMPARE s6,     00      
-    JUMP    Z,      FirmwareLoopEnd     ;If not, then skip LED toggle
+    FETCH   s6, SP_SEM                  ;If interrupt fired, SP_SEM != 0
+    COMPARE s6, 00      
+    JUMP    Z,  FirmwareLoopEnd         ;If not, then skip LED toggle
     
-    FETCH   s1,     SP_LED_15_8         ; So, toggle hi LEDs
-    XOR     s1,     FF
+    FETCH   s1, SP_LED_15_8             ; So, toggle hi LEDs
+    XOR     s1, FF
     CALL    WriteLedsHi
     
-    FETCH   s6,     SP_SEM              ; prepare for next interrupt
-    SUB     s6,     01
-    STORE   s6,     SP_SEM     
+    FETCH   s6, SP_SEM                  ; prepare for next interrupt
+    SUB     s6, 01
+    STORE   s6, SP_SEM     
 
 FirmwareLoopEnd:
     JUMP    FirmwareLoop
@@ -342,6 +364,7 @@ ProcessDump:
     CALL    WaitForNonAck
 
     ;total = payloadSize0<<24 & payloadSize1<<16 & payloadSize2<<8 & payloadSize3<<0
+    
     ; Store Trace Length in SP
     STORE s0, SP_TRACE_SIZE0
     STORE s1, SP_TRACE_SIZE1
@@ -349,7 +372,7 @@ ProcessDump:
     STORE s3, SP_TRACE_SIZE3
     
     ;Zero out our transfer count (in SP)
-    LOAD s4, 00
+    LOAD  s4, 00
     STORE s4, SP_TRANSFERRED0
     STORE s4, SP_TRANSFERRED1
     STORE s4, SP_TRANSFERRED2
@@ -437,8 +460,6 @@ ProcessDump:
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
 
-    LOAD    s0, 00
-    STORE   s0, SP_BUFFER_INDEX                  ; Reset incoming UART buffer for next command
     RETURN
     
 ; -----------------------------------------------------------------------------
@@ -549,7 +570,7 @@ WaitForAck:
  WaitLoop1:    
     INPUT   s0, PA_READ_LOGCAP_STATUS
     TEST    s0, 00001000'b          ;LogCap Ack Asserted?
-    JUMP    Z, WaitLoop1
+    JUMP    Z,  WaitLoop1
     RETURN
 
 WaitForNonAck:
@@ -561,13 +582,13 @@ WaitForNonAck:
 ; -----------------------------------------------------------------------------
 IsUartDataPresent:
     INPUT   s0, PA_READ_UART_STATUS
-    TEST    s0, 00001000'b          ; Rx Data Present?   
+    TEST    s0, 00001000'b          ; Rx Data Present?   Z=1 If not
     RETURN
 ; -----------------------------------------------------------------------------
 WriteLedsHi:  
-    LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
-    AND         s0,     MSK_LEDS_HI         ; mask out unused bits
-    OUTPUT      s0,     PA_WRITE_LED_15_8   ;PA_LEDS1508     ; and write pattern to the LEDs 
+    LOAD    s0, s1                  ; Copy LEDs to s0 to preserve them
+    AND     s0, MSK_LEDS_HI         ; mask out unused bits
+    OUTPUT  s0, PA_WRITE_LED_15_8   ;PA_LEDS1508     ; and write pattern to the LEDs 
     RETURN                                  ; and return                                
                 
 
@@ -578,26 +599,26 @@ WriteLedsHi:
 ; Interrupt Stuff Starts
 ; -----------------------------------------------------------------------------
 ADDRESS 300
-isr:            STORE       s6,     SP_TEMP1            ;   save s6, s5
-                STORE       s5,     SP_TEMP2            ;
-                FETCH       s6,     SP_SEM              ;   fetch the semaphore
-                TEST        s6,     FF                  ;   if (SP_SEM == 0) {  // update system register values
-                JUMP        NZ,     isr_L0              ;   -- ZF == 0 says semaphore != 0
-                                                        ;       // no - get the data from the rojobot emulator
+isr:            
+    STORE   s6, SP_TEMP1            ;   save s6, s5
+    STORE   s5, SP_TEMP2            ;
+    FETCH   s6, SP_SEM              ;   fetch the semaphore
+    TEST    s6, FF                  ;   if (SP_SEM == 0) {  // update system register values
+    JUMP    NZ, isr_L0              ;   -- ZF == 0 says semaphore != 0
+                                            ;       // no - get the data from the rojobot emulator
 
-                ADD         s6,     01                  ;       increment semaphore
-                STORE       s6,     SP_SEM              ;   }  // update system register values
+    ADD     s6, 01                  ;       increment semaphore
+    STORE   s6, SP_SEM              ;   }  // update system register values
 isr_L0:
-        
-        
-        
-                FETCH       s6,     SP_TEMP1            ;   restore s6, s5
-                FETCH       s5,     SP_TEMP2            ;
-                RETURNI         ENABLE              ;   and return from interrupt           
+
+    FETCH   s6, SP_TEMP1            ;   restore s6, s5
+    FETCH   s5, SP_TEMP2            ;
+    RETURNI ENABLE                      ;   and return from interrupt           
 
 
 ADDRESS 3FF
-intvect:        JUMP    isr                         ; jump to interrupt service routine
+intvect:        
+    JUMP    isr                         ; jump to interrupt service routine
 ; -----------------------------------------------------------------------------
 ; Interrupt Stuff Ends
 ; -----------------------------------------------------------------------------                
