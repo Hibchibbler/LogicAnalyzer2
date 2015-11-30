@@ -1,0 +1,510 @@
+; -----------------------------------------------------------------
+; Version:  0.0
+; Author:   Daniel Ferguson
+; Date:     
+;
+;
+; ----------------------------------------------------------------- 
+
+    
+;  bit masks for pushbuttons and switches for seven segment emulator
+CONSTANT    MSK_ALLBTNS,    1F      ; Buttons are in bits[5:0]
+CONSTANT    MSK_PBTNS,      0F      ; Mask for 4 buttons to display on LED
+CONSTANT    MSK_BTN_CENTER, 10      ; Pushbutton Center is bit 4
+CONSTANT    MSK_BTN_WEST,   08      ; Pushbutton Left is bit 3
+CONSTANT    MSK_BTN_NORTH,  04      ; Pushbutton Up is bit 2
+CONSTANT    MSK_BTN_EAST,   02      ; Pushbutton Right is bit 1
+CONSTANT    MSK_BTN_SOUTH,  01      ; Pushbutton Down is bit 0
+
+CONSTANT    MSK_ALLSW_LO,   FF      ; Slide switches are in bits[7:0] of PA_SLSWTCH_07_00
+CONSTANT    MSK_ALLSW_HI,   FF      ; Slide switchees are in bits[7:0] of PA_SLSWTCH_15_08
+CONSTANT    MSK_SW7,        80      ; Slide switch 7 is bit 7
+CONSTANT    MSK_SW6,        40      ; Slide switch 6 is bit 6
+CONSTANT    MSK_SW5,        20      ; Slide switch 5 is bit 5
+CONSTANT    MSK_SW4,        10      ; Slide switch 4 is bit 4
+CONSTANT    MSK_SW3,        08      ; Slide switch 3 is bit 3
+CONSTANT    MSK_SW2,        04      ; Slide switch 2 is bit 2
+CONSTANT    MSK_SW1,        02      ; Slide switch 1 is bit 1
+CONSTANT    MSK_SW0,        01      ; Slide switch 0 is bit 0
+
+CONSTANT    MSK_SW15,       80      ; Slide switch 15 is bit 7
+CONSTANT    MSK_SW14,       40      ; Slide switch 14 is bit 6
+CONSTANT    MSK_SW13,       20      ; Slide switch 13 is bit 5
+CONSTANT    MSK_SW12,       10      ; Slide switch 12 is bit 4
+CONSTANT    MSK_SW11,       08      ; Slide switch 11 is bit 3
+CONSTANT    MSK_SW10,       04      ; Slide switch 10 is bit 2
+CONSTANT    MSK_SW09,       02      ; Slide switch 09 is bit 1
+CONSTANT    MSK_SW08,       01      ; Slide switch 08 is bit 0
+
+
+; bit mask for LEDs
+CONSTANT    MSK_LEDS_LO,    FF      ; Mask for rightmost 8 LEDs on the Nexys4
+CONSTANT    MSK_LEDS_HI,    FF      ; Mask for the lefmost 8 LEDs on the Nexys4
+
+
+
+; nibble masks
+CONSTANT    MSKLOWNIB,      0F      ; Mask out high nibble of byte
+CONSTANT    MSKHIGHNIB,     F0      ; Mask out low nibble of byte
+CONSTANT    INVLOWNIB,      0F      ; Invert low nibble of byte
+
+
+; ==============================
+; === Storage for old values ===
+; ==============================
+CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
+CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
+CONSTANT    SP_TEMP2,       22      ;
+CONSTANT    SP_BUFFER_INDEX 23
+
+; Output Port Addresses
+CONSTANT PA_WRITE_LOGCAP_REGISTER0, 00 
+CONSTANT PA_WRITE_LOGCAP_REGISTER1, 01
+CONSTANT PA_WRITE_LOGCAP_REGISTER2, 02
+CONSTANT PA_WRITE_LOGCAP_REGISTER3, 03
+CONSTANT PA_WRITE_LOGCAP_REGISTER4, 04
+CONSTANT PA_WRITE_LOGCAP_REGISTER5, 05
+CONSTANT PA_WRITE_LOGCAP_REGISTER6, 06
+CONSTANT PA_WRITE_LOGCAP_REGISTER7, 07
+CONSTANT PA_WRITE_LOGCAP_COMMAND,   08
+CONSTANT PA_WRITE_UART_DATA,        09
+CONSTANT PA_WRITE_LED_7_0,          0A
+CONSTANT PA_WRITE_LED_15_8,         0B
+
+; Input Port Addresses
+CONSTANT PA_READ_LOGCAP_REGISTER0,  00 
+CONSTANT PA_READ_LOGCAP_REGISTER1,  01
+CONSTANT PA_READ_LOGCAP_REGISTER2,  02
+CONSTANT PA_READ_LOGCAP_REGISTER3,  03
+CONSTANT PA_READ_LOGCAP_REGISTER4,  04
+CONSTANT PA_READ_LOGCAP_REGISTER5,  05
+CONSTANT PA_READ_LOGCAP_REGISTER6,  06
+CONSTANT PA_READ_LOGCAP_REGISTER7,  07
+CONSTANT PA_READ_LOGCAP_STATUS,     08
+CONSTANT PA_READ_UART_DATA,         09
+CONSTANT PA_READ_UART_STATUS,       0A
+CONSTANT PA_READ_SWITCHES_7_0,      0B
+CONSTANT PA_READ_SWITCHES_15_8,     0C
+CONSTANT PA_READ_BUTTONS,           0D
+
+
+; LogCap Command Codes (C&C can issue these commands to LogCap)
+CONSTANT CMD_LOGCAP_START,             00
+CONSTANT CMD_LOGCAP_ABORT,             01
+CONSTANT CMD_LOGCAP_STATUS,            02
+CONSTANT CMD_LOGCAP_TRIG_CONFIGURE,    03
+CONSTANT CMD_LOGCAP_BUFF_CONFIGURE,    04
+CONSTANT CMD_LOGCAP_DUMP,              05
+CONSTANT CMD_LOGCAP_ACK,               06
+CONSTANT CMD_LOGCAP_TRACE_SIZE,        07
+CONSTANT CMD_LOGCAP_TRIGGER_SAMPLE,    08
+CONSTANT CMD_LOGCAP_RESET,             09
+
+; C&C Command Codes  (Frontend can send these command codes to C&C) or (C&C will receive these commands from the Frontend)
+CONSTANT CMD_CC_START,             00
+CONSTANT CMD_CC_ABORT,             01
+CONSTANT CMD_CC_STATUS,            02
+CONSTANT CMD_CC_TRIG_CONFIGURE,    03
+CONSTANT CMD_CC_BUFF_CONFIGURE,    04
+CONSTANT CMD_CC_DUMP,              05
+CONSTANT CMD_CC_TRACE_SIZE,        07
+CONSTANT CMD_CC_TRIGGER_SAMPLE,    08
+
+
+CONSTANT CMD_CC_CMD_SIZE,          09 ;Header+Payload  (bytes)
+
+
+
+WaitForAck:
+ WaitLoop:    
+    INPUT s0, PA_READ_LOGCAP_STATUS
+    TEST  s0, 00001000'b          ;LogCap Ack Asserted?
+    JUMP  Z, WaitLoop:
+    RETURN
+
+WaitForNonAck:
+ WaitLoop:    
+    INPUT s0, PA_READ_LOGCAP_STATUS
+    TEST s0, 00001000'b          ;LogCap Ack Deasserted?
+    JUMP NZ, WaitLoop:
+    RETURN    
+    
+IsUartDataPresent:
+    INPUT s0, PA_READ_UART_STATUS
+    TEST s0, 00000011'b          ; Rx Data Present?   
+    RETURN
+
+
+
+; -----------------------------------------------------------------------------
+; MAIN LOOP Start
+; -----------------------------------------------------------------------------    
+ADDRESS 000
+entrypt:
+    JUMP    Prologue                        ; workaround to avoid location 3 corruption
+    JUMP    Prologue                        ; by Vivado Hardware Manager.  Bug was flagged by
+    JUMP    Prologue                        ; Ken Chapman and is known to be in 2014.2
+    JUMP    Prologue                        ; Address 003 can be corrupted by Vivado HW manager
+                                                    ;
+Prologue:
+    NAMEREG sF,                         index ;for clarity. The register that holds the value of the: current index into the SP buffer, where we store partial commands from Frontned. We use 00 to 09.
+    NAMEREG sE,                         datum ;for clarity.
+
+    LOAD    s1,     00                  ; clear the semaphore
+    STORE   s1,     SP_SEM              ;
+    STORE   s1,     SP_BUFFER_INDEX
+
+    ENABLE  INTERRUPT                   ; get the ball rolling
+    
+InitializeFirmwareLoop:
+    LOAD bufferIndex, 00
+FirmwareLoop:
+    CALL IsUartDataPresent          ;Sets Zero Flag is no data present...
+    JUMP Z, CheckCmd                ;No data present, goto CheckCmd
+    INPUT datum, PA_READ_UART_DATA  ;data is present, add to buffer
+    STORE datum, (bufferIndex)
+    ADD bufferIndex, 01
+CheckCmd:
+    COMPARE bufferIndex, CMD_CC_CMD_SIZE
+    JUMP Z, ProcessCommand          ;We have a full command, process it.
+    JUMP    Upkeep                  ;We do not have a full command, nothing to process.
+ProcessCommand:
+    LOAD index, 00
+    FETCH cmd, (index)
+ProcessIfStartCmd:
+    COMPARE cmd, CMD_CC_START
+    JUMP NZ, ProcessIfAbortCmd
+    ; Process Start
+    CALL ProcessStart
+    JUMP DoneProcessing
+ProcessIfAbortCmd:
+    COMPARE cmd, CMD_CC_ABORT
+    JUMP NZ, ProcessIfStatusCmd
+    ; Process Abort
+    CALL ProcessAbort
+    JUMP DoneProcessing
+ProcessIfStatusCmd:
+    COMPARE cmd, CMD_CC_STATUS
+    JUMP NZ, ProcessIfTrigConfCmd
+    ; Process Status request
+    CALL ProcessStatus
+    JUMP DoneProcessing
+ProcessIfTrigConfCmd:
+    COMPARE cmd, CMD_CC_TRIG_CONFIGURE
+    JUMP NZ, ProcessIfBuffConfCmd
+    ; Process Trigger Configuration
+    CALL ProcessTrigConf
+    JUMP DoneProcessing
+ProcessIfBuffConfCmd:
+    COMPARE cmd, CMD_CC_BUFF_CONFIGURE
+    JUMP NZ, ProcessIfDumpCmd
+    ; Process Buffer Configuration
+    CALL ProcessBuffConf
+    JUMP DoneProcessing
+ProcessIfDumpCmd:
+    COMPARE cmd, CMD_CC_DUMP
+    JUMP NZ, ProcessIfTraceSize
+    ; Process Dump
+    CALL ProcessDump
+    JUMP DoneProcessing
+ProcessIfTraceSize:
+    COMPARE cmd, CMD_TRACE_SIZE
+    JUMP NZ, ProcessIfTriggerSampleCmd
+    ; Process the Trace Size request
+    CALL ProcessTraceSize
+    JUMP DoneProcessing
+ProcessIfTriggerSample:
+    COMPARE cmd, CMD_TRIGGER_SAMPLE
+    ; Process Trigger Sample request
+    CALL ProcessTriggerSample
+    JUMP DoneProcessing    
+DoneProcessing:  
+    
+Upkeep:
+    FETCH   s6,     SP_SEM                  ;If interrupt fired, SP_SEM != 0
+    COMPARE s6,     00      
+    JUMP    Z,      FirmwareLoopEnd         ;If not, then skip LED toggle
+    
+    FETCH s1, SP_LED_15_8                   ; So, toggle hi LEDs
+    XOR s1, FF
+    CALL LED_wrleds_hi
+    
+    FETCH   s6,             SP_SEM          ; prepare for next interrupt
+    SUB     s6,             01
+    STORE   s6,             SP_SEM     
+
+FirmwareLoopEnd:
+    JUMP FirmwareLoop
+; -----------------------------------------------------------------------------
+; MAIN LOOP Ends
+; -----------------------------------------------------------------------------    
+; -----------------------------------------------------------------------------
+; Functions Definitions Start
+; -----------------------------------------------------------------------------            
+ProcessStart:
+    OUTPUT CMD_LOGCAP_START, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForNonAck
+    RETURN
+    
+ProcessAbort:
+    OUTPUT CMD_LOGCAP_ABORT, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForNonAck
+    RETURN
+    
+ProcessTrigConf:
+
+    
+    LOAD s0, 01
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER0
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER1
+
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER2
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER3
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER4
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER5
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER6
+
+    FETCH datum, (s0)
+    ADD s0, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER7
+
+    OUTPUT CMD_LOGCAP_TRIG_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we know that they read what we wrote
+    CALL WaitForNonAck
+    RETURN
+    
+ProcessBuffConf:
+    LOAD index, 01
+
+    FETCH datum, (index)
+    ADD index, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER0
+
+    FETCH datum, (index)
+    ADD index, 01;
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER1
+
+    FETCH datum, (index)
+    ADD index, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER2
+
+    FETCH datum, (index)
+    ADD index, 01
+    OUTPUT datum, PA_WRITE_LOGCAP_REGISTER3
+        
+    OUTPUT CMD_LOGCAP_BUFF_CONFIGURE, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForNonAck
+    RETURN
+
+
+ProcessDump:
+    ; Figure out how much we need to read (total)
+
+    OUTPUT CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size. byte 1
+    INPUT s1, PA_READ_LOGCAP_REGISTER1; byte 2
+    INPUT s2, PA_READ_LOGCAP_REGISTER2; byte 3
+    INPUT s3, PA_READ_LOGCAP_REGISTER3; byte 4
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL WaitForNonAck
+
+    total = payloadSize0<<24 & payloadSize1<<16 & payloadSize2<<8 & payloadSize3<<0
+    ;CALL SendHeaderToFrontend(DUMP, total)
+    OUTPUT CMD_CC_DUMP, PA_WRITE_UART_DATA
+    OUTPUT s0, PA_WRITE_UART_DATA      
+    OUTPUT s1, PA_WRITE_UART_DATA      
+    OUTPUT s2, PA_WRITE_UART_DATA      
+    OUTPUT s3, PA_WRITE_UART_DATA      
+
+ DoChunkTransfer:
+
+       
+    OUTPUT CMD_LOGCAP_DUMP, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
+    CALL WaitForAck              ; Wait for LogCap to acknowledge
+    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT s1, PA_READ_LOGCAP_REGISTER1
+    INPUT s2, PA_READ_LOGCAP_REGISTER2
+    INPUT s3, PA_READ_LOGCAP_REGISTER3      
+    INPUT s4, PA_READ_LOGCAP_REGISTER4
+    INPUT s5, PA_READ_LOGCAP_REGISTER5
+    INPUT s6, PA_READ_LOGCAP_REGISTER6
+    INPUT s7, PA_READ_LOGCAP_REGISTER7
+
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL WaitForNonAck               ; Wait for LogCap to acknowledge
+
+    OUTPUT s0, PA_WRITE_UART_DATA      
+    OUTPUT s1, PA_WRITE_UART_DATA      
+    OUTPUT s2, PA_WRITE_UART_DATA      
+    OUTPUT s3, PA_WRITE_UART_DATA     
+    OUTPUT s4, PA_WRITE_UART_DATA      
+    OUTPUT s5, PA_WRITE_UART_DATA      
+    OUTPUT s6, PA_WRITE_UART_DATA      
+    OUTPUT s7, PA_WRITE_UART_DATA
+
+    ADD transfered, 08 ;must carry
+
+    COMPARE transfered, total ;must carry; if carry set, transfered < total
+    JUMP C, DoChunkTransfer   ; so, transfer another chunk.
+
+    OUTPUT CMD_LOGCAP_RESET, PA_WRITE_LOGCAP_COMMAND  ;otherwise, we are done transfering chunks. reset LogCap.
+    CALL WaitForAck
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForNonAck
+
+    LOAD index, 00                           ;reset buffer for next command
+    RETURN
+    
+
+ProcessStatus:    
+    ;Send Packet
+    ; Header
+    ;  Func Code      
+    LOAD    s4, CMD_CC_STATUS
+    OUTPUT  s4, PA_WRITE_UART_DATA
+    ;  Payload Size - 1 Byte
+    LOAD    s0, 01
+    LOAD    s1, 00
+    LOAD    s2, 00
+    LOAD    s3, 00
+    OUTPUT  s0, PA_WRITE_UART_DATA          
+    OUTPUT  s1, PA_WRITE_UART_DATA          
+    OUTPUT  s2, PA_WRITE_UART_DATA          
+    OUTPUT  s3, PA_WRITE_UART_DATA       
+    ; Payload      
+    INPUT   s0, PA_READ_LOGCAP_STATUS   ; Read LogCap Status Register
+    OUTPUT  s0, PA_WRITE_UART_DATA
+    
+    RETURN
+
+    
+ProcessTraceSize:
+    OUTPUT CMD_LOGCAP_TRACE_SIZE, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT s1, PA_READ_LOGCAP_REGISTER1
+    INPUT s2, PA_READ_LOGCAP_REGISTER2
+    INPUT s3, PA_READ_LOGCAP_REGISTER3
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL WaitForNonAck
+
+    ;total = traceSizeByte0<<24 & traceSizeByte1<<16 & traceSizeByte2<<8 & traceSizeByte3<<0
+
+    ;Send Packet to Frontend
+    ;  Func Code      
+    LOAD   s8, CMD_CC_TRACE_SIZE
+    OUTPUT s8, PA_WRITE_UART_DATA
+    
+    ;  Payload Size - 4 Bytes
+    LOAD s4, 04
+    LOAD s5, 00
+    LOAD s6, 00
+    LOAD s7, 00    
+    OUTPUT s4, PA_WRITE_UART_DATA          
+    OUTPUT s5, PA_WRITE_UART_DATA          
+    OUTPUT s6, PA_WRITE_UART_DATA          
+    OUTPUT s7, PA_WRITE_UART_DATA     
+    
+    ; Payload
+    OUTPUT s0, PA_WRITE_UART_DATA
+    OUTPUT s1, PA_WRITE_UART_DATA
+    OUTPUT s2, PA_WRITE_UART_DATA
+    OUTPUT s3, PA_WRITE_UART_DATA
+      
+    RETURN
+    
+ProcessTriggerSample:
+    OUTPUT CMD_LOGCAP_TRIGGER_SAMPLE, PA_WRITE_LOGCAP_COMMAND
+    CALL WaitForAck
+    INPUT s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT s1, PA_READ_LOGCAP_REGISTER1
+    INPUT s2, PA_READ_LOGCAP_REGISTER2
+    INPUT s3, PA_READ_LOGCAP_REGISTER3
+    OUTPUT CMD_LOGCAP_ACK, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    CALL WaitForNonAck
+
+    ;total = triggerSampleByte0<<24 & triggerSampleByte1<<16 & triggerSampleByte2<<8 & triggerSampleByte3<<0
+
+    ;Send Packet to Frontend
+    ;  Func Code      
+    LOAD   s8, CMD_CC_TRIGGER_SAMPLE
+    OUTPUT s8, PA_WRITE_UART_DATA
+    
+    ;  Payload Size - 4 Bytes
+    LOAD s4, 04
+    LOAD s5, 00
+    LOAD s6, 00
+    LOAD s7, 00    
+    OUTPUT s4, PA_WRITE_UART_DATA          
+    OUTPUT s5, PA_WRITE_UART_DATA          
+    OUTPUT s6, PA_WRITE_UART_DATA          
+    OUTPUT s7, PA_WRITE_UART_DATA     
+    
+    ; Payload
+    OUTPUT s0, PA_WRITE_UART_DATA
+    OUTPUT s1, PA_WRITE_UART_DATA
+    OUTPUT s2, PA_WRITE_UART_DATA
+    OUTPUT s3, PA_WRITE_UART_DATA
+    RETURN
+    
+
+; -----------------------------------------------------------------------------
+; Functions Definitions End
+; -----------------------------------------------------------------------------    
+; -----------------------------------------------------------------------------
+; Interrupt Stuff Starts
+; -----------------------------------------------------------------------------
+ADDRESS 300
+isr:            STORE       s6,     SP_TEMP1            ;   save s6, s5
+                STORE       s5,     SP_TEMP2            ;
+                FETCH       s6,     SP_SEM              ;   fetch the semaphore
+                TEST        s6,     FF                  ;   if (SP_SEM == 0) {  // update system register values
+                JUMP        NZ,     isr_L0              ;   -- ZF == 0 says semaphore != 0
+                                                        ;       // no - get the data from the rojobot emulator
+
+                ADD         s6,     01                  ;       increment semaphore
+                STORE       s6,     SP_SEM              ;   }  // update system register values
+isr_L0:
+        
+        
+        
+                FETCH       s6,     SP_TEMP1            ;   restore s6, s5
+                FETCH       s5,     SP_TEMP2            ;
+                RETURNI         ENABLE              ;   and return from interrupt           
+
+
+ADDRESS 3FF
+intvect:        JUMP    isr                         ; jump to interrupt service routine
+; -----------------------------------------------------------------------------
+; Interrupt Stuff Ends
+; -----------------------------------------------------------------------------                
+                    
