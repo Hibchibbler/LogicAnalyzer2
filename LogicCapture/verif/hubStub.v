@@ -29,6 +29,11 @@ module hubStub (
     input [7:0]          status
 );
 
+integer cmdLog;
+initial begin
+    cmdLog = $fopen("COMMAND_LOG.txt", "w");
+end
+
 // Number of clocks after reset is clear
 // to begin issuing commands
 parameter CMD_DELAY_CLKS = 50;
@@ -44,13 +49,14 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_BUFFER_CONFIGURE    = 8'h04,
             CMD_READ_TRACE_DATA     = 8'h05,
             CMD_READ_TRACE_SIZE     = 8'h06,
-            CMD_READ_TRIGGER_SAMP   = 8'h07,
+            CMD_READ_TRIGGER_SAMPLE = 8'h07,
             CMD_ACK                 = 8'h08,
-            CMD_RESET               = 8'h09,
-            CMD_READ_TRIGGER_SAMPLE = 8'h10;
+            CMD_RESET               = 8'h09;
 
 wire ack;
+wire idle;
 assign ack = status[3];
+assign idle =  status[0];
 
 localparam POS = 1'b1, NEG = 1'b0, TRUE = 1'b1, FALSE = 1'b0;
 
@@ -69,6 +75,9 @@ begin
                    .dontCare(16'h0000),
                    .activeChannels(16'hffff));
     issueCmd(CMD_START);
+    $fdisplay(cmdLog, "Start Command Issued, waiting for idle state..");
+    wait(idle);
+    dataReadback;
 end
 endtask
 
@@ -81,6 +90,8 @@ always @(posedge clk) begin
             commandSequence;
             waitNClocks(POST_DELAY);
             sequenceComplete = 1;
+            $fclose(cmdLog);
+            $finish;
         end
     end
 end
@@ -114,6 +125,8 @@ task configBuffer;
 input [31:0] preTriggerCount;
 input [31:0] totalSampleCount;
 begin
+    $fdisplay(cmdLog, "Buffer Config:");
+    $fdisplay(cmdLog, "Total Sample Count: %d   Pre-Trigger Count: %d", totalSampleCount, preTriggerCount);
     {regIn7, regIn6, regIn5, regIn4} = preTriggerCount;
     {regIn3, regIn2, regIn1, regIn0} = totalSampleCount;
     issueCmd(CMD_BUFFER_CONFIGURE);
@@ -129,12 +142,36 @@ input [15:0] desiredPattern;
 input [15:0] dontCare;
 input [15:0] activeChannels;
 begin
+    $fdisplay(cmdLog, "Configuring Triggers:");
+    $fdisplay(cmdLog, "Edge Trigger Enable: %b  Type: %b  Channel: %d", edgeTriggerEnable, edgeTriggerType, edgeTriggerChannel);
+    $fdisplay(cmdLog, "Pattern Trigger Enable: %b Desired Pattern: %h, Dont Cares: %h", patternTriggerEnable, desiredPattern, dontCare);
+    $fdisplay(cmdLog, "Active Channels: %h", activeChannels);
     {regIn1, regIn0} = desiredPattern;
     {regIn3, regIn2} = activeChannels;
     {regIn5, regIn4} = dontCare;
     regIn6 <= edgeTriggerChannel;
     regIn7 <= {5'b00000, edgeTriggerType, edgeTriggerEnable, patternTriggerEnable};
     issueCmd(CMD_TRIGGER_CONFIGURE);
+end
+endtask
+
+task dataReadback;
+reg [31:0] numBytes;
+reg [63:0] sampleData;
+begin
+    $fdisplay(cmdLog, "Beginning readback sequence.");
+    issueCmd(CMD_READ_TRACE_SIZE);
+    numBytes = {regOut3, regOut2, regOut1, regOut0};
+    $fdisplay(cmdLog, "Reading back %d bytes of data from LogCap", numBytes);
+    repeat(numBytes/8) begin
+        command <= CMD_READ_TRACE_DATA;
+        strobeCmd;
+        wait(ack);
+        sampleData <= {regOut7, regOut6, regOut5, regOut4, regOut3, regOut2, regOut1, regOut0};
+        $fdisplay(cmdLog, "Retrieved Sample Data: %h", sampleData);
+        command    <= CMD_ACK;
+        strobeCmd;
+    end
 end
 endtask
 
@@ -154,8 +191,9 @@ end
 endtask
 
 task waitNClocks;
-input [31:0] num;
+input [63:0] num;
 begin
+    $fdisplay(cmdLog, "Waiting %d clock cycles...", num);
     repeat(num)
         @(posedge clk);
 end
