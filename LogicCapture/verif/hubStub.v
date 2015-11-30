@@ -29,6 +29,8 @@ module hubStub (
     input [7:0]          status
 );
 
+parameter ABORT_TEST = 1;
+
 integer cmdLog;
 initial begin
     cmdLog = $fopen("COMMAND_LOG.txt", "w");
@@ -76,6 +78,8 @@ begin
                    .activeChannels(16'hffff));
     issueCmd(CMD_START);
     $fdisplay(cmdLog, "Start Command Issued, waiting for idle state..");
+    waitNClocks(217);
+    issueCmd(CMD_ABORT);
     wait(idle);
     readTriggerSample;
     dataReadback;
