@@ -47,9 +47,19 @@ localparam  CMD_NOP                 = 8'h00,
 wire ack;
 assign ack = status[3];
 
+localparam POS = 1'b1, NEG = 1'b0, TRUE = 1'b1, FALSE = 1'b0;
+
 task commandSequence;
 begin
-    configBuffer(32'd20, 32'd110);
+    configBuffer(.preTriggerCount(20),
+                 .totalSampleCount(110));
+    configTriggers(.edgeTriggerEnable(TRUE),
+                   .edgeTriggerChannel(8'd2),
+                   .edgeTriggerType(POS),
+                   .patternTriggerEnable(FALSE),
+                   .desiredPattern(16'h0000),
+                   .dontCare(16'h0000),
+                   .activeChannels(16'hffff));
     waitNClocks(10);
 end
 endtask
@@ -93,15 +103,27 @@ task configBuffer;
 input [31:0] preTriggerCount;
 input [31:0] totalSampleCount;
 begin
-    regIn7 <= preTriggerCount[31:24];
-    regIn6 <= preTriggerCount[23:16];
-    regIn5 <= preTriggerCount[15:8];
-    regIn4 <= preTriggerCount[7:0];
-    regIn3 <= totalSampleCount[31:24];
-    regIn2 <= totalSampleCount[23:16];
-    regIn1 <= totalSampleCount[15:8];
-    regIn0 <= totalSampleCount[7:0];
+    {regIn7, regIn6, regIn5, regIn4} = preTriggerCount;
+    {regIn3, regIn2, regIn1, regIn0} = totalSampleCount;
     issueCmd(CMD_BUFFER_CONFIGURE);
+end
+endtask
+
+task configTriggers;
+input edgeTriggerEnable;
+input [7:0] edgeTriggerChannel;
+input edgeTriggerType;
+input patternTriggerEnable;
+input [15:0] desiredPattern;
+input [15:0] dontCare;
+input [15:0] activeChannels;
+begin
+    {regIn1, regIn0} = desiredPattern;
+    {regIn3, regIn2} = activeChannels;
+    {regIn5, regIn4} = dontCare;
+    regIn6 <= edgeTriggerChannel;
+    regIn7 <= {5'b00000, edgeTriggerType, edgeTriggerEnable, patternTriggerEnable};
+    issueCmd(CMD_TRIGGER_CONFIGURE);
 end
 endtask
 
