@@ -80,7 +80,7 @@ assign reset = ~resetn;
 always @(*) begin
     cmd_count = (pending_adx_count + rd_data_count + rd_data_fifo_wren);
     read_allowed  = cmd_count < MAX_READ_REQ;
-    reads_pending = cmd_count > 32'd0;
+    reads_pending = pending_adx_count > 32'd0;
 end
 
 always @(posedge clk) begin

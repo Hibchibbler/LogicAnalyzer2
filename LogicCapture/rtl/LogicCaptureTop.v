@@ -69,10 +69,9 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_BUFFER_CONFIGURE    = 8'h04,
             CMD_READ_TRACE_DATA     = 8'h05,
             CMD_READ_TRACE_SIZE     = 8'h06,
-            CMD_READ_TRIGGER_SAMP   = 8'h07,
+            CMD_READ_TRIGGER_SAMPLE = 8'h07,
             CMD_ACK                 = 8'h08,
-            CMD_RESET               = 8'h09,
-            CMD_READ_TRIGGER_SAMPLE = 8'h10;
+            CMD_RESET               = 8'h09;
 
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
@@ -108,9 +107,12 @@ wire [31:0] sampleNumber_End;
 wire [31:0] sampleNumber_Trig;
 wire [31:0] traceSizeBytes;
 wire [31:0] readSampleNumber;
-wire postTrigger, preTrigger,idle;
-
+wire postTrigger, preTrigger,idle,logIdle;
 wire load_l, load_u;
+
+// de-assert idle when start command is
+// being issued;
+assign idle = logIdle & ~start & (currentCommand != CMD_START);
 
 // assign the status register
 assign status      = {4'b0000, acknowledge, postTrigger, preTrigger, idle};
@@ -251,7 +253,7 @@ LogCap #(
     .edgeType(edgeType),
     .postTrigger(postTrigger),
     .preTrigger(preTrigger),
-    .idle(idle),
+    .idle(logIdle),
     .start(start),
     .abort(abort),
     .samplePacket(samplePacket),

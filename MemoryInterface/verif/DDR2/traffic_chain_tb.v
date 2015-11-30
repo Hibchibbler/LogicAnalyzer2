@@ -84,7 +84,7 @@ module traffic_chain_tb;
           
     /************************ END WIRE/REG DECLARATIONS *********************/
 
-
+    parameter MAX_SAMPLE_DATA = 16'h00ff;
     // Generate random sample data
     reg [15:0] sampleData;
     reg [4:0] flipCount;
@@ -100,7 +100,12 @@ module traffic_chain_tb;
                 sampleData <= 16'd0;
         end else begin
             if (flipCount == 5'b11111) begin
-                sampleData <= $random;
+                if (sampleData == MAX_SAMPLE_DATA) begin
+                    sampleData <= 16'h0000;
+                end else begin
+                    sampleData <= sampleData + 16'h0001;
+                end
+//                sampleData <= $random;
             end else begin
                 sampleData <= sampleData;
             end
