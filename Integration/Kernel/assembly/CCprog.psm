@@ -1,0 +1,444 @@
+; -----------------------------------------------------------------
+; Version:  0.0
+; Author:   Daniel Ferguson
+; Date:     
+;
+;
+; ----------------------------------------------------------------- 
+
+
+
+
+; ======================
+; === Port Addresses ===
+; ======================
+
+
+; =====================================
+; === Register bit mappings (masks) ===
+; =====================================
+    
+;  bit masks for pushbuttons and switches for seven segment emulator
+CONSTANT    MSK_ALLBTNS,    1F      ; Buttons are in bits[5:0]
+CONSTANT    MSK_PBTNS,      0F      ; Mask for 4 buttons to display on LED
+CONSTANT    MSK_BTN_CENTER, 10      ; Pushbutton Center is bit 4
+CONSTANT    MSK_BTN_WEST,   08      ; Pushbutton Left is bit 3
+CONSTANT    MSK_BTN_NORTH,  04      ; Pushbutton Up is bit 2
+CONSTANT    MSK_BTN_EAST,   02      ; Pushbutton Right is bit 1
+CONSTANT    MSK_BTN_SOUTH,  01      ; Pushbutton Down is bit 0
+
+CONSTANT    MSK_ALLSW_LO,   FF      ; Slide switches are in bits[7:0] of PA_SLSWTCH_07_00
+CONSTANT    MSK_ALLSW_HI,   FF      ; Slide switchees are in bits[7:0] of PA_SLSWTCH_15_08
+CONSTANT    MSK_SW7,        80      ; Slide switch 7 is bit 7
+CONSTANT    MSK_SW6,        40      ; Slide switch 6 is bit 6
+CONSTANT    MSK_SW5,        20      ; Slide switch 5 is bit 5
+CONSTANT    MSK_SW4,        10      ; Slide switch 4 is bit 4
+CONSTANT    MSK_SW3,        08      ; Slide switch 3 is bit 3
+CONSTANT    MSK_SW2,        04      ; Slide switch 2 is bit 2
+CONSTANT    MSK_SW1,        02      ; Slide switch 1 is bit 1
+CONSTANT    MSK_SW0,        01      ; Slide switch 0 is bit 0
+
+CONSTANT    MSK_SW15,       80      ; Slide switch 15 is bit 7
+CONSTANT    MSK_SW14,       40      ; Slide switch 14 is bit 6
+CONSTANT    MSK_SW13,       20      ; Slide switch 13 is bit 5
+CONSTANT    MSK_SW12,       10      ; Slide switch 12 is bit 4
+CONSTANT    MSK_SW11,       08      ; Slide switch 11 is bit 3
+CONSTANT    MSK_SW10,       04      ; Slide switch 10 is bit 2
+CONSTANT    MSK_SW09,       02      ; Slide switch 09 is bit 1
+CONSTANT    MSK_SW08,       01      ; Slide switch 08 is bit 0
+
+
+; bit mask for LEDs
+CONSTANT    MSK_LEDS_LO,    FF      ; Mask for rightmost 8 LEDs on the Nexys4
+CONSTANT    MSK_LEDS_HI,    FF      ; Mask for the lefmost 8 LEDs on the Nexys4
+
+
+
+; nibble masks
+CONSTANT    MSKLOWNIB,      0F      ; Mask out high nibble of byte
+CONSTANT    MSKHIGHNIB,     F0      ; Mask out low nibble of byte
+CONSTANT    INVLOWNIB,      0F      ; Invert low nibble of byte
+
+
+; =============================
+; === Useful Data Constants ===
+; =============================
+
+;  Constants for True and False and Null
+CONSTANT    FALSE,          00
+CONSTANT    TRUE,           01
+CONSTANT    NULL,           00
+
+
+
+; ==============================
+; === Storage for old values ===
+; ==============================
+CONSTANT    SP_SEM,         20      ; Semaphore between isr and main loop
+CONSTANT    SP_TEMP1,       21      ; Temp storage.  Used by ISR
+CONSTANT    SP_TEMP2,       22      ;
+
+; Output Port Addresses
+CONSTANT PA_WRITE_LOGCAP_REGISTER0, 00 
+CONSTANT PA_WRITE_LOGCAP_REGISTER1, 01
+CONSTANT PA_WRITE_LOGCAP_REGISTER2, 02
+CONSTANT PA_WRITE_LOGCAP_REGISTER3, 03
+CONSTANT PA_WRITE_LOGCAP_REGISTER4, 04
+CONSTANT PA_WRITE_LOGCAP_REGISTER5, 05
+CONSTANT PA_WRITE_LOGCAP_REGISTER6, 06
+CONSTANT PA_WRITE_LOGCAP_REGISTER7, 07
+CONSTANT PA_WRITE_LOGCAP_COMMAND,   08
+CONSTANT PA_WRITE_UART_DATA,        09
+CONSTANT PA_WRITE_LED_7_0,          0A
+CONSTANT PA_WRITE_LED_15_8,         0B
+
+; Input Port Addresses
+CONSTANT PA_READ_LOGCAP_REGISTER0,  00 
+CONSTANT PA_READ_LOGCAP_REGISTER1,  01
+CONSTANT PA_READ_LOGCAP_REGISTER2,  02
+CONSTANT PA_READ_LOGCAP_REGISTER3,  03
+CONSTANT PA_READ_LOGCAP_REGISTER4,  04
+CONSTANT PA_READ_LOGCAP_REGISTER5,  05
+CONSTANT PA_READ_LOGCAP_REGISTER6,  06
+CONSTANT PA_READ_LOGCAP_REGISTER7,  07
+CONSTANT PA_READ_LOGCAP_STATUS,     08
+CONSTANT PA_READ_UART_DATA,         09
+CONSTANT PA_READ_UART_STATUS,       0A
+CONSTANT PA_READ_SWITCHES_7_0,      0B
+CONSTANT PA_READ_SWITCHES_15_8,     0C
+CONSTANT PA_READ_BUTTONS,           0D
+
+
+; LogCap Commands
+CONSTANT CMD_LOGCAP_START,          01
+CONSTANT CMD_LOGCAP_ABORT,          02
+CONSTANT CMD_LOGCAP_CONF_TRIG,      03
+CONSTANT CMD_LOGCAP_CONF_BUFF,      04
+CONSTANT CMD_LOGCAP_DUMP,           05
+CONSTANT CMD_LOGCAP_STATS,          06
+
+; LogCap Status
+CONSTANT STATUS_LOGCAP_IDLE,        01
+CONSTANT STATUS_LOGCAP_PRE_TRIGGER, 02
+CONSTANT STATUS_LOGCAP_POST_TRIGGER,04
+CONSTANT STATUS_LOGCAP_DATA_VALID,  08
+
+
+; --------- Logic Capture -----------
+;
+; Write to LogCap Register [0-7]   - Output Port [0-7] 
+; Write LogCap Command - Output Port 8
+; Read from LogCap Register [0-7]  - Input  Port [0-7] 
+;
+; Commands
+;    01 - Signal LogCap to Start
+;    02 - Signal LogCap to Abort
+;    03 - Signal LogCap To Read Trigger Settings From input LogCap Registers
+;    04 - Signal LogCap to Read Buffer Settings From input LogCap Registers
+;    05 - Signal LogCap to Write Trace Statistics To output LogCap Registers
+
+
+; ===============
+; === main()  ===
+; ===============
+ADDRESS 000
+    JUMP    main                        ; workaround to avoid location 3 corruption
+    JUMP    main                        ; by Vivado Hardware Manager.  Bug was flagged by
+    JUMP    main                        ; Ken Chapman and is known to be in 2014.2
+    JUMP    main                        ; Address 003 can be corrupted by Vivado HW manager
+                                                    ;
+main:
+           
+    LOAD    s1,     00                  ; clear the semaphore
+    STORE   s1,     SP_SEM              ;
+
+    ENABLE  INTERRUPT                   ; get the ball rolling
+                            
+
+; ==================
+; === Main  Loop ===
+; ==================
+                                                    
+main_L0:                                ;   while(1) {  // main loop is an infinite loop
+    ; FETCH   s6,     SP_SEM              ;       while (SP_SEMA == 0)  {}   // loop until isr updates rojobot registers
+    ; COMPARE s6,     00                  ;
+    ; JUMP    Z,      main_L0             ;
+TestChooser:
+
+    CALL UART_RX
+    COMPARE s5, 01
+    JUMP Z, Test1
+    COMPARE s5, 02
+    JUMP Z, Test2
+    COMPARE s5, 04
+    JUMP Z, Test3
+    COMPARE s5, 08
+    JUMP Z, Test4
+    JUMP TestFinish
+Test1:
+    
+    ;Write LogCap Command Abort
+    LOAD   s0, CMD_LOGCAP_ABORT
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND
+    
+    ;Read Status
+    ; Assert Status == Idle
+    CALL WaitLogCapIdle
+    
+    ;Write Trigger Configuration to LogCap Registers
+    ;Write LogCap Command ConfTrig
+    LOAD s0, 00                     ; desired pattern [7:0] = 00000000
+    LOAD s1, 00                     ; desired pattern[15:8] = 00000000 (16'h0000)
+    LOAD s2, 07                     ; active channels [7:0] = 00000111
+    LOAD s3, 00                     ; active channels[15:8] = 00000000 (16'h0007)
+    LOAD s4, F8                     ; don't care channels [7:0] = 11111000
+    LOAD s5, FF                     ; don't care channels[15:8] = 11111111 (16'hFFF8)
+    LOAD s6, 00                     ; edge channel = 0
+    LOAD s7, 06                     ; {edgeType, edgeTrigEn, patternTrigEn} = 110
+    LOAD s8, CMD_LOGCAP_CONF_TRIG   ; command logcap to read new trigger config
+    OUTPUT s0, PA_WRITE_LOGCAP_REGISTER0
+    OUTPUT s1, PA_WRITE_LOGCAP_REGISTER1
+    OUTPUT s2, PA_WRITE_LOGCAP_REGISTER2
+    OUTPUT s3, PA_WRITE_LOGCAP_REGISTER3
+    OUTPUT s4, PA_WRITE_LOGCAP_REGISTER4
+    OUTPUT s5, PA_WRITE_LOGCAP_REGISTER5
+    OUTPUT s6, PA_WRITE_LOGCAP_REGISTER6
+    OUTPUT s7, PA_WRITE_LOGCAP_REGISTER7
+    OUTPUT s8, PA_WRITE_LOGCAP_COMMAND
+    
+    ;Write Buffer Configuration to LogCap Registers
+    ;Write LogCap Command ConfBuf
+    LOAD s0, 10 ; maxSampleCount [7:0]
+    LOAD s1, 27 ; maxSampleCount[15:0] - 10000 (must be a multiple of 4)
+    LOAD s2, E8 ; preTriggerSampleCount [7:0]
+    LOAD s3, 03 ; preTriggerSampleCount[15:0] - 1000
+    LOAD s4, CMD_LOGCAP_CONF_BUFF
+    OUTPUT s0, PA_WRITE_LOGCAP_REGISTER0
+    OUTPUT s1, PA_WRITE_LOGCAP_REGISTER1
+    OUTPUT s2, PA_WRITE_LOGCAP_REGISTER2
+    OUTPUT s3, PA_WRITE_LOGCAP_REGISTER3
+    OUTPUT s4, PA_WRITE_LOGCAP_COMMAND
+    
+    ;Read Status
+    ;   Assert Status == Idle
+    CALL WaitLogCapIdle
+    
+    ;Write LogCap Command Start
+    ;Read Status
+    ;   Assert Status == Idle --> PreTrigger --> PostTrigger --> Idle
+    LOAD   s0, CMD_LOGCAP_START             ; 
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND      ; issue start command to logCap
+    LOAD s1, STATUS_LOGCAP_PRE_TRIGGER      ; wait for log cap to go to pre trigger
+    CALL WaitLogCapStatuss1                 ; 
+    LOAD s1, STATUS_LOGCAP_POST_TRIGGER     ; wait for log cap to go to post trigger
+    CALL WaitLogCapStatuss1                 ; 
+    CALL WaitLogCapIdle                     ; wait for log cap to finish and go to idle
+    
+    ; reading data for now, trace stats commands not set up yet
+    LOAD s0, CMD_LOGCAP_DUMP                ; 
+    OUTPUT s0, PA_WRITE_LOGCAP_COMMAND      ;
+    
+    ; spin on data ready
+    LOAD s1, STATUS_LOGCAP_DATA_VALID
+    CALL WaitLogCapStatuss1
+    
+    ; read from logCap registers and put data out on UART
+    INPUT s5, PA_READ_LOGCAP_REGISTER0
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER1
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER2
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER3
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER4
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER5
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER6
+    CALL UART_TX
+    INPUT s5, PA_READ_LOGCAP_REGISTER7
+    CALL UART_TX
+    
+    ;Write Trace Statistics
+    ;Delay
+    ;Read Byte0 from LogCap Registers
+    ;Read Byte1 from LogCap Registers
+    ;...
+    ;Read Byte7 from LogCap Registers
+    ;
+    ;For (page = 0;page < TraceStatistic.TotalPages;++page){
+    ;   Write LogCap Command Dump
+    ;   Delay
+    ;   Read Byte0 from LogCap Registers
+    ;   Read Byte1 from LogCap Registers
+    ;   ...
+    ;   Read Byte7 from LogCap Registers
+    ;}
+    
+    
+    JUMP TestFinish
+Test2:
+    ;FETCH   s6,     SP_SEM  
+    ;COMPARE s6,     00      
+    ;JUMP    Z,      main_L0 
+    
+    CALL HelloWorldTransmitTest
+    
+    
+    ;FETCH   s6,             SP_SEM
+    ;SUB     s6,             01
+    ;STORE   s6,             SP_SEM 
+    
+    JUMP TestFinish
+Test3:
+       
+    JUMP TestFinish
+Test4:
+       
+    JUMP TestFinish
+TestFinish:
+    
+
+
+
+    
+    
+    
+    ; FETCH   s6,             SP_SEM
+    ; SUB     s6,             01          ;       decrement semaphore
+    ; STORE   s6,             SP_SEM      ;
+    JUMP    main_L0                     ;   } // end - main while loop  
+                
+            
+;**************************************************************************************
+; Support functions
+;************************************************************************************** 
+INCLUDE "uart_interface_routines.psm"
+
+HelloWorldTransmitTest:
+    LOAD    s5,     48 ;'H'
+    CALL    UART_TX
+    
+    LOAD    s5,     45 ;'E'
+    CALL    UART_TX
+    
+    LOAD    s5,     4C ;'L'
+    CALL    UART_TX
+    
+    LOAD    s5,     4C ;'L'
+    CALL    UART_TX
+    
+    LOAD    s5,     4F ;'O'
+    CALL    UART_TX
+    
+    LOAD    s5,     20 ;' '
+    CALL    UART_TX
+    
+    LOAD    s5,     57 ;'W'
+    CALL    UART_TX
+    
+    LOAD    s5,     6f ;'o'
+    CALL    UART_TX
+    
+    LOAD    s5,     72 ;'r'
+    CALL    UART_TX
+    
+    LOAD    s5,     6c ;'l'
+    CALL    UART_TX
+    
+    LOAD    s5,     64 ;'d'
+    CALL    UART_TX
+    
+    LOAD    s5,     20 ;' '
+    CALL    UART_TX
+    
+    RETURN
+
+
+;---------------------
+; WaitLogCapIdle() - reads LogCap status, returns once LogCap is idle
+;   will get stuck in a near-endless loop if an 'ABORT' command was not issued first
+;   or if LogCap is busy capturing signals for a long time
+;---------------------
+WaitLogCapIdle:
+    INPUT   s0, PA_READ_LOGCAP_STATUS   ; read logcap status
+    AND     s0, 01                      ; mask off all bits except idle
+    COMPARE s0, 01                      ; is idle high?
+    CALL NZ, WaitLogCapIdle             ; loop if it isn't
+    RETURN                              ; return if it is
+
+WaitLogCapStatuss1:
+    INPUT   s0, PA_READ_LOGCAP_STATUS   ; read logcap status
+    AND     s0, s1                      ; mask off all bits except relevant status bit
+    COMPARE s0, s1                      ; is status bit high?
+    CALL NZ, WaitLogCapStatuss1         ; loop if it isn't
+    RETURN                              ; return if it is
+;---------------------
+; DEB_rdbtns() - Reads the debounced pushbuttons
+;---------------------
+DEB_rdbtns:     INPUT       s0,     PA_READ_BUTTONS            ; read the buttons
+                AND         s0,     MSK_ALLBTNS         ; mask out unused bits
+                RETURN                              ; and return
+                
+                
+;---------------------
+; DEB_rdsw() - Reads the low order debounced switches
+;---------------------
+DEB_rdsw:       INPUT       s0,     PA_READ_SWITCHES_7_0         ; read the slide switches
+                AND         s0,     MSK_ALLSW_LO        ; mask out unused bits
+                RETURN                              ; and return                
+
+                
+;---------------------
+; DEB_rdsw_hi() - Reads the high order debounced switches
+;---------------------
+DEB_rdsw_hi:    INPUT       s0,     PA_READ_SWITCHES_15_8      ; read the slide switches
+                AND         s0,     MSK_ALLSW_HI        ; mask out unused bits
+                RETURN                              ; and return    
+                                
+;---------------------
+; LED_wrleds() - Write the low order 8 LEDs
+;---------------------
+LED_wrleds:     LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
+                AND         s0,     MSK_LEDS_LO         ; mask out unused bits
+                OUTPUT      s0,     PA_WRITE_LED_7_0;PA_LEDS             ; and write pattern to the LEDs 
+                RETURN                              ; and return    
+
+;---------------------
+; LED_wrleds_hi() - Write the high order 8 LEDs
+;---------------------
+LED_wrleds_hi:  LOAD        s0,     s1                  ; Copy LEDs to s0 to preserve them
+                AND         s0,     MSK_LEDS_HI         ; mask out unused bits
+                OUTPUT      s0,     PA_WRITE_LED_15_8;PA_LEDS1508     ; and write pattern to the LEDs 
+                RETURN                              ; and return                                
+                
+
+;**************************************************************************************
+; Interrupt Handler
+;************************************************************************************** 
+ADDRESS 300
+isr:            STORE       s6,     SP_TEMP1            ;   save s6, s5
+                STORE       s5,     SP_TEMP2            ;
+                FETCH       s6,     SP_SEM              ;   fetch the semaphore
+                TEST        s6,     FF                  ;   if (SP_SEM == 0) {  // update system register values
+                JUMP        NZ,     isr_L0              ;   -- ZF == 0 says semaphore != 0
+                                                        ;       // no - get the data from the rojobot emulator
+
+                ADD         s6,     01                  ;       increment semaphore
+                STORE       s6,     SP_SEM              ;   }  // update system register values
+isr_L0:
+        
+        
+        
+                FETCH       s6,     SP_TEMP1            ;   restore s6, s5
+                FETCH       s5,     SP_TEMP2            ;
+                RETURNI         ENABLE              ;   and return from interrupt           
+
+;**************************************************************************************
+; Interrupt Vector
+;************************************************************************************** 
+ADDRESS 3FF
+intvect:        JUMP    isr                         ; jump to interrupt service routine
+                
+                    
