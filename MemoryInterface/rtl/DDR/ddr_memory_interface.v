@@ -49,20 +49,7 @@ module ddr_memory_interface (
     output  [0:0]       ddr2_cke,
     output  [0:0]       ddr2_cs_n,
     output  [1:0]       ddr2_dm,
-    output  [0:0]       ddr2_odt,
-    
-    /**** DEBUG SIGNALS ****/
-    output [26:0] app_addr,
-    output [2:0]  app_cmd,
-    output        app_en,
-    output [63:0] app_wdf_data,
-    output        app_wdf_end,
-    output        app_wdf_wren,
-    output [63:0] app_rd_data,
-    output        app_rd_data_end,
-    output        app_rd_data_valid,
-    output        app_rdy,
-    output        app_wdf_rdy
+    output  [0:0]       ddr2_odt
 );
 
 // req_receiving to dispatch
@@ -77,18 +64,18 @@ wire         disp_has_rd_req;
 wire         disp_get_rd_req;
 
 // DDR Application Interface Signals
-//wire [26:0] app_addr;
-//wire [2:0]  app_cmd;
-//wire        app_en;
-//wire [63:0] app_wdf_data;
-//wire        app_wdf_end;
+wire [26:0] app_addr;
+wire [2:0]  app_cmd;
+wire        app_en;
+wire [63:0] app_wdf_data;
+wire        app_wdf_end;
 wire [7:0]  app_wdf_mask;
-//wire        app_wdf_wren;
-//wire [63:0] app_rd_data;
-//wire        app_rd_data_end;
-//wire        app_rd_data_valid;
-//wire        app_rdy;
-//wire        app_wdf_rdy;
+wire        app_wdf_wren;
+wire [63:0] app_rd_data;
+wire        app_rd_data_end;
+wire        app_rd_data_valid;
+wire        app_rdy;
+wire        app_wdf_rdy;
 wire        app_sr_req;
 wire        app_ref_req;
 wire        app_zq_req;
