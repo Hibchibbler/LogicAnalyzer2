@@ -160,7 +160,8 @@ Prologue:
     LOAD    s1,     00                  ; clear the semaphore
     STORE   s1,     SP_SEM              ;
     STORE   s1,     SP_BUFFER_INDEX     ; zero the sp buffer (used for incoming uart data) (we will use scratch pad memory to store bytes until there are enough to process a command)
-
+    LOAD    s1, AA
+    STORE   s1, SP_LED_15_8
     ENABLE  INTERRUPT                   ; get the ball rolling
     
 InitializeFirmwareLoop:
