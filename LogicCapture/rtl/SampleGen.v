@@ -46,10 +46,10 @@ module SampleGen #(
     input [31:0] maxSampleCount,
     input [31:0] preTriggerSampleCountMax,
     
-    // Data about sample numbers
-    output reg [31:0] sampleNum_Begin,
-    output reg [31:0] sampleNum_End,
-    output reg [31:0] sampleNum_Trig,
+    // Page aligned data about sample numbers
+    output [31:0] sampleNum_Begin_pa,
+    output [31:0] sampleNum_End_pa,
+    output [31:0] sampleNum_Trig_pa,
     output reg [31:0] traceSizeBytes
 );
 
@@ -61,12 +61,25 @@ localparam MAX_SAMPLE_INTERVAL  = {TRANSITION_COUNTER_WIDTH{1'b1}};
 localparam MAX_SAMPLE_NUMBER    = NUM_MEMORY_WORDS/NUM_WORDS_PER_PACKET-1;
 
 reg [TRANSITION_COUNTER_WIDTH-1:0] last_transition_count;
-
+reg [31:0] sampleNum_Begin;
+reg [31:0] sampleNum_End;
+reg [31:0] sampleNum_Trig;
 reg [31:0] triggerSampleNumber;
 reg [31:0] postTriggerSamplesMax;
 reg [31:0] preTriggerSampleCount;
 reg [31:0] postTriggerSampleCount;
 reg [31:0] totalSamplesTaken;
+
+// Create some page aligned versions of the values
+// to play nicely with memory interface
+reg signed [31:0] pageAlignedSampleCount;
+reg signed [31:0] sampleNum_End_pageAligned;
+reg signed [31:0] sampleNum_Begin_pageAligned;
+reg signed [31:0] sampleNum_Trig_pageAligned;
+
+assign sampleNum_Begin_pa = sampleNum_Begin_pageAligned;
+assign sampleNum_End_pa   = sampleNum_End_pageAligned;
+assign sampleNum_Trig_pa  = sampleNum_Trig_pageAligned;
 
 // These are for status reporting and readback memory calculations
 reg [31:0] capturedSampleCount;
@@ -182,7 +195,6 @@ always @(*) begin
     end
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
-    traceSizeBytes        = capturedSampleCount*NUM_BYTES_PER_PACKET;
     if (postTrigger) begin
         complete = (totalSamplesTaken === maxSampleCount);
     end else begin
@@ -190,5 +202,29 @@ always @(*) begin
     end
 end
 
+// Create the page aligned final sample numbers/byte size.
+// This will shift the capture window a few samples such that
+// the data returned to the client is page aligned with what
+// is in memory.
+always @(*) begin
+    if (sampleNum_End[1:0] == 2'b11) begin
+        sampleNum_End_pageAligned = sampleNum_End;
+    end else begin
+        sampleNum_End_pageAligned = sampleNum_End-1;
+        sampleNum_End_pageAligned = {sampleNum_End_pageAligned[31:2], 2'b11};
+    end
+    if (sampleNum_Begin[1:0] == 2'b00) begin
+        sampleNum_Begin_pageAligned = sampleNum_Begin;
+    end else begin
+        sampleNum_Begin_pageAligned = {sampleNum_Begin[31:2], 2'b00};
+    end
+    if (sampleNum_End_pageAligned >= sampleNum_Begin_pageAligned) begin
+        pageAlignedSampleCount = sampleNum_End_pageAligned - sampleNum_Begin_pageAligned + 1;
+    end else begin
+        pageAlignedSampleCount = MAX_SAMPLE_NUMBER - sampleNum_Begin_pageAligned + sampleNum_End_pageAligned + 2;
+    end
+    traceSizeBytes = pageAlignedSampleCount*NUM_BYTES_PER_PACKET;
+    sampleNum_Trig_pageAligned = sampleNum_Trig + (sampleNum_Begin - sampleNum_Begin_pageAligned);
+end
 
 endmodule

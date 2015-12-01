@@ -99,9 +99,9 @@ SampleGen #(
     .write_enable(write_enable),
     .maxSampleCount(maxSampleCount),
     .preTriggerSampleCountMax(preTriggerSampleCountMax),
-    .sampleNum_Begin(sampleNumber_Begin),
-    .sampleNum_End(sampleNumber_End),
-    .sampleNum_Trig(sampleNumber_Trig),
+    .sampleNum_Begin_pa(sampleNumber_Begin),
+    .sampleNum_End_pa(sampleNumber_End),
+    .sampleNum_Trig_pa(sampleNumber_Trig),
     .traceSizeBytes(traceSizeBytes)
 );
 
