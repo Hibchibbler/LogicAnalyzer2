@@ -78,8 +78,10 @@ begin
                    .activeChannels(16'hffff));
     issueCmd(CMD_START);
     $fdisplay(cmdLog, "Start Command Issued, waiting for idle state..");
-    waitNClocks(217);
-    issueCmd(CMD_ABORT);
+    if (ABORT_TEST) begin
+        waitNClocks(217);
+        issueCmd(CMD_ABORT);
+    end
     wait(idle);
     readTriggerSample;
     dataReadback;
