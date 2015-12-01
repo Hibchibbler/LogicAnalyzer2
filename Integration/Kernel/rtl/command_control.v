@@ -44,7 +44,7 @@ module command_control
         .out_port       (port_out),         //o
         .port_id        (port_id),          //o
         .write_strobe   (write_strobe),     //o
-        .k_write_strobe (k_write_strobe),   //o
+        .k_write_strobe (kwrite_strobe),    //o
         
         .read_strobe    (read_strobe),      //o
         
