@@ -22,20 +22,6 @@ module nexys4fpga (
     output  [0:0]       ddr2_odt
 );
 
-/**** DEBUG SIGNALS *****/
-wire [26:0] app_addr;
-wire [2:0]  app_cmd;
-wire        app_en;
-wire [63:0] app_wdf_data;
-wire        app_wdf_end;
-wire        app_wdf_wren;
-wire [63:0] app_rd_data;
-wire        app_rd_data_end;
-wire        app_rd_data_valid;
-wire        app_rdy;
-wire        app_wdf_rdy;
-/************************/
-
 wire clk_mig;
 wire soc_clk, soc_resetn, soc_reset;
 // traffic gen to req_receiving
@@ -162,7 +148,7 @@ LogicCaptureTop ilogcap (
     .read_sample_address(rd_adx),
     .read_req(read_req),
     // TODO: make sure this gets real read_allowed when doing end to end sim
-    .read_allowed(1'b1)
+    .read_allowed(read_allowed)
 );
 
 dram_packer data_packer (
@@ -175,7 +161,7 @@ dram_packer data_packer (
     .dram_adx(wr_adx),
     .write_req(write_req),
     // TODO: make sure this gets real write_allowed when doing end to end sim
-    .write_allowed(1'b1),
+    .write_allowed(write_allowed),
     .pageFull(pageFull)
 );
 
@@ -213,25 +199,13 @@ ddr_memory_interface ddr_if(
     .ddr2_cke(ddr2_cke),
     .ddr2_cs_n(ddr2_cs_n),
     .ddr2_dm(ddr2_dm),
-    .ddr2_odt(ddr2_odt),
-    /**** DEBUG SIGNALS ****/
-    .app_addr(app_addr),
-    .app_cmd(app_cmd),
-    .app_en(app_en),
-    .app_wdf_data(app_wdf_data),
-    .app_wdf_end(app_wdf_end),
-    .app_wdf_wren(app_wdf_wren),
-    .app_rd_data(app_rd_data),
-    .app_rd_data_end(app_rd_data_end),
-    .app_rd_data_valid(app_rd_data_valid),
-    .app_rdy(app_rdy),
-    .app_wdf_rdy(app_wdf_rdy)
+    .ddr2_odt(ddr2_odt)
 );
 
 clk_wiz_0 clkgen (
     .clk_in1(clk),
     .clk_mig(clk_mig),
-    .clk_ila(clk_ila)
+    .clk_ila()
 );
 
 endmodule
