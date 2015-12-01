@@ -170,7 +170,7 @@ reset_UART_macros: OUTPUTK UART_reset, reset_UART_port
                    ;
                    ; Registers used s0, s1 and s5.
                    ;
-          UART_RX: LOAD s1, 167'd                            ;Timeout = 167 x (6 instructions x 2 clock cycles)
+          UART_RX: LOAD s1, 250'd                            ;Timeout = 167 x (6 instructions x 2 clock cycles)
        rx_timeout: INPUT s0, UART_status_port
                    TEST s0, UART_Rx_data_present             ;Z=0 and C=1 when data present
                    JUMP NZ, read_Rx
