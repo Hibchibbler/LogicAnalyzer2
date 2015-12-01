@@ -56,7 +56,7 @@ module command_control
     
     ); 
       
-    CCprog    
+    CCprog_Notes3    
      #(
         .C_FAMILY            ("7S"),        //Family (Virtex-7 == 7S)
         .C_RAM_SIZE_KWORDS   (2),           //Program size '1', '2' or '4'
