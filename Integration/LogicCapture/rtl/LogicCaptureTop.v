@@ -71,7 +71,9 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_READ_TRACE_SIZE     = 8'h06,
             CMD_READ_TRIGGER_SAMPLE = 8'h07,
             CMD_ACK                 = 8'h08,
-            CMD_RESET               = 8'h09;
+            CMD_RESET               = 8'h09,
+            CMD_READ_BUFF_CFG       = 8'h0A,
+            CMD_READ_TRIG_CFG       = 8'h0B;
 
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
@@ -224,6 +226,8 @@ begin
         CMD_READ_TRACE_SIZE:     executeReadTraceSize;
         CMD_READ_TRIGGER_SAMPLE: executeReadTriggerSample;
         CMD_RESET:               executeReset;
+        CMD_READ_BUFF_CFG:       readBufferConfig;
+        CMD_READ_TRIG_CFG:       readTriggerConfig;
     endcase
 end
 endtask
@@ -352,6 +356,14 @@ begin
 end
 endtask
 
+task readBufferConfig;
+begin
+    {regOut3, regOut2, regOut1, regOut0} <= maxSampleCount;
+    {regOut7, regOut6, regOut5, regOut4} <= preTriggerSampleCountMax;
+    acknowledgeCmd;
+end
+endtask
+
 task executeConfigTrigger;
 begin
     desiredPattern       <= {regIn1, regIn0};
@@ -361,6 +373,17 @@ begin
     patternTriggerEnable <= regIn7[0];
     edgeTriggerEnable    <= regIn7[1];
     edgeType             <= regIn7[2];
+    acknowledgeCmd;
+end
+endtask
+
+task readTriggerConfig;
+begin
+    {regOut1, regOut0} <= desiredPattern;
+    {regOut3, regOut2} <= activeChannels;
+    {regOut5, regOut4} <= dontCareChannels;
+    regOut6            <= edgeChannel;
+    regOut7            <= {5'b00000, edgeType, edgeTriggerEnable, patternTriggerEnable};
     acknowledgeCmd;
 end
 endtask
