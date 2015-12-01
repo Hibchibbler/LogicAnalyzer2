@@ -58,9 +58,9 @@ wire       utx_buffer_data_present;
 wire       utx_buffer_write;
 
 //UART Baud Generator
-wire       en_16_x_baud;
-wire       uart_baud;
-assign uart_baud = TB_MODE ? 1'b1 : en_16_x_baud;
+wire         en_16_x_baud;
+wire         uart_baud;
+assign       uart_baud = TB_MODE ? 1'b1 : en_16_x_baud;
 
 // Clk input to the memory interface
 wire clk_mig;
@@ -113,7 +113,6 @@ wire [7:0]   status;
 assign soc_reset = ~soc_resetn;
 
 /*********   C&C PICOBLAZE + ROM ***********/
-/* INSERT PICOBLAZE + PROGRAM HERE */
 command_control cc(
     .clk(soc_clk),
     .reset(soc_reset),
@@ -129,34 +128,7 @@ command_control cc(
 );
 
 /*********   C&C COMMUNICATION HUB ********/
-/* STRIP OUT STUB AND REPLACE WITH REAL HUB */
-//hubStub hubstub (
-//    .clk(soc_clk),
-//    .resetn(soc_resetn),
-    
-//    .command(command),
-//    .commandStrobe(commandStrobe),
-    
-//    // Registers into the LogicCaptureTop
-//    .regIn0(regIn0),
-//    .regIn1(regIn1),
-//    .regIn2(regIn2),
-//    .regIn3(regIn3),
-//    .regIn4(regIn4),
-//    .regIn5(regIn5),
-//    .regIn6(regIn6),
-//    .regIn7(regIn7),
-//    // Registers out of the LogicCaptureTop
-//    .regOut0(regOut0),
-//    .regOut1(regOut1),
-//    .regOut2(regOut2),
-//    .regOut3(regOut3),
-//    .regOut4(regOut4),
-//    .regOut5(regOut5),
-//    .regOut6(regOut6),
-//    .regOut7(regOut7),
-//    .status(status)
-//);
+
   command_control_hub cchub
   (
       //General
