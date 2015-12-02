@@ -198,7 +198,7 @@ always @(*) begin
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
     if (postTrigger) begin
-        complete = (totalSamplesTaken === maxSampleCount) & pageFull;
+        complete = (totalSamplesTaken >= maxSampleCount) & pageFull;
     end else begin
         complete = 0;
     end
