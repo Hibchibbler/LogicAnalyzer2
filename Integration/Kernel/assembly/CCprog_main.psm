@@ -393,6 +393,22 @@ ProcessWriteBuffCfg:
     FETCH   s1, (s0)
     ADD     s0, 01
     OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER3
+    
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER4
+    
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER5
+    
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER6
+    
+    FETCH   s1, (s0)
+    ADD     s0, 01
+    OUTPUT  s1, PA_WRITE_LOGCAP_REGISTER7
         
     LOAD    s0, CMD_LOGCAP_WRITE_BUFF_CFG
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
@@ -648,7 +664,7 @@ ProcessReadTriggerSample:
 ProcessReadTrigCfg:
     ; Read the Trigger Configuration from LogCap
     ; And send it to the Frontend
-    ;
+    ;;00 00 FF FF FF FF 00 00
     ;----Snip from LogicCaptureTop----
     ; {regOut1, regOut0} <= desiredPattern;
     ; {regOut3, regOut2} <= activeChannels;
@@ -660,17 +676,18 @@ ProcessReadTrigCfg:
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
     CALL    WaitForAck
     
-    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT   s1, PA_READ_LOGCAP_REGISTER1
-    INPUT   s2, PA_READ_LOGCAP_REGISTER2
-    INPUT   s3, PA_READ_LOGCAP_REGISTER3
-    INPUT   s4, PA_READ_LOGCAP_REGISTER4
+    ; can't start with s0, because calls to UART_TX trashes it!!
+    INPUT   s1, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s2, PA_READ_LOGCAP_REGISTER1
+    INPUT   s3, PA_READ_LOGCAP_REGISTER2
+    INPUT   s4, PA_READ_LOGCAP_REGISTER3
+    INPUT   s6, PA_READ_LOGCAP_REGISTER4
     ; s5 is missing here (did you find that odd?) because we skipped it.
     ; CALL UART_TX expects s5 as input. But since we still need this data
     ; after calling UART_TX. 
-    INPUT   s6, PA_READ_LOGCAP_REGISTER5
-    INPUT   s7, PA_READ_LOGCAP_REGISTER6
-    INPUT   s8, PA_READ_LOGCAP_REGISTER7
+    INPUT   s7, PA_READ_LOGCAP_REGISTER5
+    INPUT   s8, PA_READ_LOGCAP_REGISTER6
+    INPUT   s9, PA_READ_LOGCAP_REGISTER7
     
     LOAD    s5, CMD_LOGCAP_ACK
     OUTPUT  s5, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
@@ -694,26 +711,27 @@ ProcessReadTrigCfg:
     CALL    UART_TX
     
     ; Payload
-    LOAD    s5, s0
-    CALL    UART_TX
     LOAD    s5, s1
     CALL    UART_TX
     LOAD    s5, s2
     CALL    UART_TX
     LOAD    s5, s3
-    CALL    UART_TX    
-    LOAD    s5, s4
     CALL    UART_TX
+    LOAD    s5, s4
+    CALL    UART_TX    
     LOAD    s5, s6  ;Note: couldn't put payload in s5 
                     ; because CALL UART_TX uses s5 as input register. TODO: fix uart_tx.
     CALL    UART_TX
-    LOAD    s5, s7
+    LOAD    s5, s7  
     CALL    UART_TX
     LOAD    s5, s8
+    CALL    UART_TX
+    LOAD    s5, s9
     CALL    UART_TX
     
     RETURN
 ; -----------------------------------------------------------------------------    
+
 ProcessReadBuffCfg:
     ; Read the Buffer Configuration from LogCap
     ; And send it to the Frontend
@@ -727,17 +745,18 @@ ProcessReadBuffCfg:
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
     CALL    WaitForAck
     
-    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT   s1, PA_READ_LOGCAP_REGISTER1
-    INPUT   s2, PA_READ_LOGCAP_REGISTER2
-    INPUT   s3, PA_READ_LOGCAP_REGISTER3
-    INPUT   s4, PA_READ_LOGCAP_REGISTER4
+    ; can't start with s0, because calls to UART_TX trashes it!!
+    INPUT   s1, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s2, PA_READ_LOGCAP_REGISTER1
+    INPUT   s3, PA_READ_LOGCAP_REGISTER2
+    INPUT   s4, PA_READ_LOGCAP_REGISTER3
+    INPUT   s6, PA_READ_LOGCAP_REGISTER4
     ; s5 is missing here (did you find that odd?) because we skipped it.
     ; CALL UART_TX expects s5 as input. But since we still need this data
     ; after calling UART_TX. 
-    INPUT   s6, PA_READ_LOGCAP_REGISTER5
-    INPUT   s7, PA_READ_LOGCAP_REGISTER6
-    INPUT   s8, PA_READ_LOGCAP_REGISTER7
+    INPUT   s7, PA_READ_LOGCAP_REGISTER5
+    INPUT   s8, PA_READ_LOGCAP_REGISTER6
+    INPUT   s9, PA_READ_LOGCAP_REGISTER7
     
     LOAD    s5, CMD_LOGCAP_ACK
     OUTPUT  s5, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
@@ -761,22 +780,22 @@ ProcessReadBuffCfg:
     CALL    UART_TX
     
     ; Payload
-    LOAD    s5, s0
-    CALL    UART_TX
     LOAD    s5, s1
     CALL    UART_TX
     LOAD    s5, s2
     CALL    UART_TX
     LOAD    s5, s3
-    CALL    UART_TX    
-    LOAD    s5, s4
     CALL    UART_TX
+    LOAD    s5, s4
+    CALL    UART_TX    
     LOAD    s5, s6  ;Note: couldn't put payload in s5 
                     ; because CALL UART_TX uses s5 as input register. TODO: fix uart_tx.
     CALL    UART_TX
-    LOAD    s5, s7
+    LOAD    s5, s7  
     CALL    UART_TX
     LOAD    s5, s8
+    CALL    UART_TX
+    LOAD    s5, s9
     CALL    UART_TX
     RETURN
 ; -----------------------------------------------------------------------------
