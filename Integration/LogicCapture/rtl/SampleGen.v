@@ -33,6 +33,8 @@ module SampleGen #(
     input start,
     input abort,
     
+    input pageFull,
+    
     input [SAMPLE_WIDTH-1:0] sampleData,
     
     output reg [SAMPLE_PACKET_WIDTH-1:0] samplePacket,
@@ -196,7 +198,7 @@ always @(*) begin
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
     if (postTrigger) begin
-        complete = (totalSamplesTaken === maxSampleCount);
+        complete = (totalSamplesTaken === maxSampleCount) & pageFull;
     end else begin
         complete = 0;
     end

@@ -93,6 +93,7 @@ SampleGen #(
     .preTrigger(preTrigger),
     .postTrigger(postTrigger),
     .idle(idle),
+    .pageFull(pageFull),
     .sampleData(latestSample),
     .samplePacket(samplePacket),
     .sample_number(sample_number),
