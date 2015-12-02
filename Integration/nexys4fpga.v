@@ -109,8 +109,23 @@ wire [7:0]   regOut6;
 wire [7:0]   regOut7;
 wire [7:0]   status;
 
+wire [15:0]  fakeSignals;
+
 // Create a high true reset
 assign soc_reset = ~soc_resetn;
+/*** InternalSignal Generator for Testing **/
+SignalGenerator
+#(
+    .NUM_CHANNELS(16),
+    .UPDATE_COUNT_BITS(16)
+)
+sg
+(
+    .clk(soc_clk),
+    .reset(soc_reset),
+    
+    .chanSignals(fakeSignals)
+);
 
 /*********   C&C PICOBLAZE + ROM ***********/
 command_control cc(
@@ -243,7 +258,8 @@ LogicCaptureTop ilogcap (
     .clk(soc_clk),
     .reset(soc_reset),
     // Asynchronous sample data input
-    .sampleData_async({JA,JB}),
+    //.sampleData_async({JA,JB}),
+    .sampleData_async(fakeSignals),
     // Communication interface to HUB
     // 8 Input Registers
     .regIn0(regIn0),

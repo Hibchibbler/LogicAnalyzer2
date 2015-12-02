@@ -55,9 +55,7 @@ module  command_control_hub
     
 );
 
-    
-//    always @(posedge clk)
-//        interrupt <= 1'b0;
+
     localparam  PA_READ_LOGCAP_REGISTER0    = 8'h00,
                 PA_READ_LOGCAP_REGISTER1    = 8'h01,
                 PA_READ_LOGCAP_REGISTER2    = 8'h02,
@@ -87,9 +85,6 @@ module  command_control_hub
                 PA_WRITE_LED_7_0            = 8'h0A,
                 PA_WRITE_LED_15_8           = 8'h0B;
     
-    //The Hub Registers
-    reg [7:0] hub_registers[7:0];
-
     //General Writes    
     always @(posedge clk) begin
         if (reset == 1'b1) begin
