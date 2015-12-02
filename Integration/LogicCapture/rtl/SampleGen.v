@@ -172,9 +172,9 @@ end
 // and total sample count to use for reading back data
 always @(posedge clk) begin
     if (reset) begin
-        sampleNum_End        <= 32'd0;
+        sampleNum_End        <= 32'd3;
         sampleNum_Trig       <= 32'd0;
-        capturedSampleCount  <= 32'd0;
+        capturedSampleCount  <= 32'd4;
     end else begin
         if ((complete | abort) & running) begin
             sampleNum_End       <= sample_number;
