@@ -230,7 +230,10 @@ always @(*) begin
         pageAlignedSampleCount = MAX_SAMPLE_NUMBER - sampleNum_Begin_pageAligned + sampleNum_End_pageAligned + 2;
     end
     traceSizeBytes = pageAlignedSampleCount*NUM_BYTES_PER_PACKET;
-    sampleNum_Trig_pageAligned = sampleNum_Trig + (sampleNum_Begin - sampleNum_Begin_pageAligned);
+    sampleNum_Trig_pageAligned = sampleNum_Trig - sampleNum_Begin_pageAligned;
+    if (sampleNum_Trig_pageAligned < 0) begin
+        sampleNum_Trig_pageAligned = sampleNum_Trig_pageAligned + MAX_SAMPLE_NUMBER;
+    end
 end
 
 endmodule
