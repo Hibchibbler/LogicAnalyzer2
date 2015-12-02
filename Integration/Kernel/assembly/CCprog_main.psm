@@ -86,6 +86,8 @@ CONSTANT    SP_TRANSFERRED3,            2B
 
 CONSTANT    SP_LED_15_8,                2C
 
+CONSTANT    SP_TIMEOUT_STATUS,          2F
+
 ; Output Port Addresses
 CONSTANT PA_WRITE_LOGCAP_REGISTER0,     00 
 CONSTANT PA_WRITE_LOGCAP_REGISTER1,     01
@@ -178,6 +180,7 @@ Prologue:
     STORE   s1, SP_SEM              ;
     STORE   s1, SP_BUFFER_INDEX     ; zero the sp buffer (used for incoming uart data) 
                                     ; (we will use scratch pad memory to store bytes until
+    STORE   s1, SP_TIMEOUT_STATUS
                                     ;  there are enough to process a command)
     LOAD    s1, AA
     STORE   s1, SP_LED_15_8
@@ -186,12 +189,12 @@ Prologue:
 InitializeFirmwareLoop:
     
 FirmwareLoop:        
-    CALL    UART_RX                     ;Sets Zero Flag is no data present...data is in s5
+    CALL    UART_RX                     ;Sets Zero Flag is no data present...data is in sF
     JUMP    Z, CheckCmd                 ;If No data present then goto CheckCmd    
 AddToBuffer:
-                                        ;data is present, add to buffer. Data is in s5
+                                        ;data is present, add to buffer. Data is in sF
     FETCH   s1, SP_BUFFER_INDEX         ;Fetch index, Store Data,Increment index, Store index
-    STORE   s5, (s1)
+    STORE   sF, (s1)
     ADD     s1, 01
     STORE   s1, SP_BUFFER_INDEX
 CheckCmd:                               ; If we have 9 bytes, then we can process the command.
@@ -425,9 +428,10 @@ ProcessReadTraceData:
     ;  We start by sending a Dump header
     ;  [cmdCode'(DUMP) |   Total bytes ] 
     ;  [ 1 byte        |   4 bytes     ]
-    LOAD    s0, CMD_LOGCAP_READ_TRACE_SIZE
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
+    LOAD    sF, CMD_LOGCAP_READ_TRACE_SIZE
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForAck
+    
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size. byte 1
     INPUT   s1, PA_READ_LOGCAP_REGISTER1; byte 2
     INPUT   s2, PA_READ_LOGCAP_REGISTER2; byte 3
@@ -446,23 +450,23 @@ ProcessReadTraceData:
     STORE s3, SP_READ_TRACE_SIZE3
     
     ;Zero out our transfer count (in SP)
-    LOAD  s0, 00
-    STORE s0, SP_TRANSFERRED0
-    STORE s0, SP_TRANSFERRED1
-    STORE s0, SP_TRANSFERRED2
-    STORE s0, SP_TRANSFERRED3
+    LOAD  sF, 00
+    STORE sF, SP_TRANSFERRED0
+    STORE sF, SP_TRANSFERRED1
+    STORE sF, SP_TRANSFERRED2
+    STORE sF, SP_TRANSFERRED3
     
     ; Dump Header (Consumed by Frontend)
     ; 1 byte code, 4 byte payload size
-    LOAD    s5, CMD_CC_READ_TRACE_DATA
+    LOAD    sF, CMD_CC_READ_TRACE_DATA
     CALL    UART_TX    
-    FETCH   s5, SP_READ_TRACE_SIZE0
+    FETCH   sF, SP_READ_TRACE_SIZE0
     CALL    UART_TX
-    FETCH   s5, SP_READ_TRACE_SIZE1
+    FETCH   sF, SP_READ_TRACE_SIZE1
     CALL    UART_TX
-    FETCH   s5, SP_READ_TRACE_SIZE2
+    FETCH   sF, SP_READ_TRACE_SIZE2
     CALL    UART_TX
-    FETCH   s5, SP_READ_TRACE_SIZE3
+    FETCH   sF, SP_READ_TRACE_SIZE3
     CALL    UART_TX
     
     
@@ -471,9 +475,10 @@ ProcessReadTraceData:
     ; Then, Until all bytes have been transfered
     ;  Read 8 bytes from LogCap
     ;  Write 8 bytes (1 byte at a time) to Frontend
-    LOAD    s0, CMD_LOGCAP_READ_TRACE_DATA
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
+    LOAD    sF, CMD_LOGCAP_READ_TRACE_DATA
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
     CALL    WaitForAck                                  ; Wait for LogCap to acknowledge
+    
     INPUT   s0, PA_READ_LOGCAP_REGISTER0                ; Get 8 bytes of Dump Data
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
     INPUT   s2, PA_READ_LOGCAP_REGISTER2
@@ -482,71 +487,76 @@ ProcessReadTraceData:
     INPUT   s5, PA_READ_LOGCAP_REGISTER5
     INPUT   s6, PA_READ_LOGCAP_REGISTER6
     INPUT   s7, PA_READ_LOGCAP_REGISTER7
-    LOAD    s8, CMD_LOGCAP_ACK
-    OUTPUT  s8, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
     CALL    WaitForNonAck                               ; Wait for LogCap to acknowledge
 
     ;Transmit the 8 byte chunk to frontend
-    LOAD    s5, s0
+    LOAD    sF, s0
     CALL    UART_TX
-    LOAD    s5, s1
+    LOAD    sF, s1
     CALL    UART_TX
-    LOAD    s5, s2
+    LOAD    sF, s2
     CALL    UART_TX
-    LOAD    s5, s3
+    LOAD    sF, s3
     CALL    UART_TX
-    LOAD    s5, s4
+    LOAD    sF, s4
     CALL    UART_TX
-    LOAD    s5, s5
+    LOAD    sF, s5
     CALL    UART_TX
-    LOAD    s5, s6
+    LOAD    sF, s6
     CALL    UART_TX
-    LOAD    s5, s7
+    LOAD    sF, s7
     CALL    UART_TX
     
     ;Add 8 to transferred tally - 32bit values require us to use craZy carry mechanism
-    FETCH   s8, SP_TRANSFERRED0                          
-    ADD     s8, 08                              
-    STORE   s8, SP_TRANSFERRED0
+    FETCH   sF, SP_TRANSFERRED0                          
+    ADD     sF, 08                              
+    STORE   sF, SP_TRANSFERRED0
     
-    FETCH   s8, SP_TRANSFERRED1
-    ADDCY   s8, 00
-    STORE   s8, SP_TRANSFERRED1
+    FETCH   sF, SP_TRANSFERRED1
+    ADDCY   sF, 00
+    STORE   sF, SP_TRANSFERRED1
     
-    FETCH   s8, SP_TRANSFERRED2
-    ADDCY   s8, 00
-    STORE   s8, SP_TRANSFERRED2
+    FETCH   sF, SP_TRANSFERRED2
+    ADDCY   sF, 00
+    STORE   sF, SP_TRANSFERRED2
     
-    FETCH   s8, SP_TRANSFERRED3
-    ADDCY   s8, 00
-    STORE   s8, SP_TRANSFERRED3
+    FETCH   sF, SP_TRANSFERRED3
+    ADDCY   sF, 00
+    STORE   sF, SP_TRANSFERRED3
     
     ;transferred - total != 0 ?  (crazy carrry shtuff)
-    FETCH   s8, SP_TRANSFERRED0
-    FETCH   s9, SP_READ_TRACE_SIZE0                          
-    SUB     s8, s9                              
+    FETCH   sF, SP_TRANSFERRED0
+    FETCH   sE, SP_READ_TRACE_SIZE0                          
+    COMPARE sF, sE                              
+    JUMP NZ, DoChunkTransfer
     
-    FETCH   s8, SP_TRANSFERRED1
-    FETCH   s9, SP_READ_TRACE_SIZE1
-    SUBCY   s8, s9
+    FETCH   sF, SP_TRANSFERRED1
+    FETCH   sE, SP_READ_TRACE_SIZE1
+    COMPARE sF, sE                              
+    JUMP NZ, DoChunkTransfer
     
-    FETCH   s8, SP_TRANSFERRED2
-    FETCH   s9, SP_READ_TRACE_SIZE2
-    SUBCY   s8, s9
+    FETCH   sF, SP_TRANSFERRED2
+    FETCH   sE, SP_READ_TRACE_SIZE2
+    COMPARE sF, sE                              
+    JUMP NZ, DoChunkTransfer
     
-    FETCH   s8, SP_TRANSFERRED3
-    FETCH   s9, SP_READ_TRACE_SIZE3
-    SUBCY   s8, s9
-    
-    JUMP NZ, DoChunkTransfer    ; based on zero flag from last SUBCY. transferred - total != 0
+    FETCH   sF, SP_TRANSFERRED3
+    FETCH   sE, SP_READ_TRACE_SIZE3
+    COMPARE sF, sE                              
+    JUMP NZ, DoChunkTransfer
+                                    
                                 ; transferred - total == 0
                                 ; We've finished transferring all bytes from LogCap
                                 ; to Frontend.
-    LOAD    s0, CMD_LOGCAP_RESET
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
+
+    LOAD    sF, CMD_LOGCAP_RESET
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
     CALL    WaitForAck
-    LOAD    s0, CMD_LOGCAP_ACK
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
 
     RETURN
@@ -559,19 +569,19 @@ ProcessReadStatus:
     ;Send Packet
     ; Header
     ;  Func Code      
-    LOAD    s5, CMD_CC_READ_STATUS
+    LOAD    sF, CMD_CC_READ_STATUS
     CALL    UART_TX
     ;  Payload Size - 1 Byte      
-    LOAD    s5, 01
+    LOAD    sF, 01
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     ; Payload      
-    INPUT   s5, PA_READ_LOGCAP_READ_STATUS   ; Read LogCap Status Register    
+    INPUT   sF, PA_READ_LOGCAP_READ_STATUS   ; Read LogCap Status Register    
     CALL    UART_TX                     ; Write Uart tx Register
     RETURN
 
@@ -579,41 +589,41 @@ ProcessReadStatus:
 ProcessReadTraceSize:
     ; Get the Trace Size from LogCap
     ; And send it to the Frontend
-    LOAD    s0, CMD_LOGCAP_READ_TRACE_SIZE
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
+    LOAD    sF, CMD_LOGCAP_READ_TRACE_SIZE
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForAck
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
     INPUT   s2, PA_READ_LOGCAP_REGISTER2
     INPUT   s3, PA_READ_LOGCAP_REGISTER3
-    LOAD    s4, CMD_LOGCAP_ACK
-    OUTPUT  s4, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
     CALL    WaitForNonAck
 
     ;total = traceSizeByte0<<24 & traceSizeByte1<<16 & traceSizeByte2<<8 & traceSizeByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD    s5, CMD_CC_READ_TRACE_SIZE
+    LOAD    sF, CMD_CC_READ_TRACE_SIZE
     CALL    UART_TX
     
     ;  Payload Size - 4 Bytes
-    LOAD    s5, 04
+    LOAD    sF, 04
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     ; Payload
-    LOAD    s5, s0
+    LOAD    sF, s0
     CALL    UART_TX
-    LOAD    s5, s1
+    LOAD    sF, s1
     CALL    UART_TX
-    LOAD    s5, s2
+    LOAD    sF, s2
     CALL    UART_TX
-    LOAD    s5, s3
+    LOAD    sF, s3
     CALL    UART_TX
       
     RETURN
@@ -621,42 +631,42 @@ ProcessReadTraceSize:
 ProcessReadTriggerSample:
     ; Get the Sample number that caused the trigger from LogCap
     ; And send it to the Frontend
-    LOAD    s0, CMD_LOGCAP_READ_TRIGGER_SAMPLE
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
+    LOAD    sF, CMD_LOGCAP_READ_TRIGGER_SAMPLE
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForAck
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
     INPUT   s2, PA_READ_LOGCAP_REGISTER2
     INPUT   s3, PA_READ_LOGCAP_REGISTER3
-    LOAD    s4, CMD_LOGCAP_ACK
-    OUTPUT  s4, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
     CALL    WaitForNonAck
 
     ;total = triggerSampleByte0<<24 & triggerSampleByte1<<16 & triggerSampleByte2<<8 & triggerSampleByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD    s5, CMD_CC_READ_TRIGGER_SAMPLE
+    LOAD    sF, CMD_CC_READ_TRIGGER_SAMPLE
     CALL    UART_TX
     
     ;  Payload Size - 4 Bytes
-    LOAD    s5, 04
+    LOAD    sF, 04
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
         
     ; Payload
-    LOAD    s5, s0
+    LOAD    sF, s0
     CALL    UART_TX
-    LOAD    s5, s1
+    LOAD    sF, s1
     CALL    UART_TX
-    LOAD    s5, s2
+    LOAD    sF, s2
     CALL    UART_TX
-    LOAD    s5, s3
+    LOAD    sF, s3
     CALL    UART_TX
     
     RETURN
@@ -672,61 +682,57 @@ ProcessReadTrigCfg:
     ; regOut6            <= edgeChannel;
     ; regOut7            <= {5'b00000, edgeType, edgeTriggerEnable, patternTriggerEnable};
     ;----
-    LOAD    s0, CMD_LOGCAP_READ_TRIG_CFG
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
+    LOAD    sF, CMD_LOGCAP_READ_TRIG_CFG
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    
     CALL    WaitForAck
     
     ; can't start with s0, because calls to UART_TX trashes it!!
-    INPUT   s1, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT   s2, PA_READ_LOGCAP_REGISTER1
-    INPUT   s3, PA_READ_LOGCAP_REGISTER2
-    INPUT   s4, PA_READ_LOGCAP_REGISTER3
-    INPUT   s6, PA_READ_LOGCAP_REGISTER4
-    ; s5 is missing here (did you find that odd?) because we skipped it.
-    ; CALL UART_TX expects s5 as input. But since we still need this data
-    ; after calling UART_TX. 
-    INPUT   s7, PA_READ_LOGCAP_REGISTER5
-    INPUT   s8, PA_READ_LOGCAP_REGISTER6
-    INPUT   s9, PA_READ_LOGCAP_REGISTER7
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3
+    INPUT   s4, PA_READ_LOGCAP_REGISTER4
+    INPUT   s5, PA_READ_LOGCAP_REGISTER5
+    INPUT   s6, PA_READ_LOGCAP_REGISTER6
+    INPUT   s7, PA_READ_LOGCAP_REGISTER7
     
-    LOAD    s5, CMD_LOGCAP_ACK
-    OUTPUT  s5, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
     CALL    WaitForNonAck
 
     ;total = traceSizeByte0<<24 & traceSizeByte1<<16 & traceSizeByte2<<8 & traceSizeByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD    s5, CMD_CC_READ_TRIG_CFG
+    LOAD    sF, CMD_CC_READ_TRIG_CFG
     CALL    UART_TX
     
     ;  Payload Size - 8 Bytes
-    LOAD    s5, 08
+    LOAD    sF, 08
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     
     ; Payload
-    LOAD    s5, s1
+    LOAD    sF, s0
     CALL    UART_TX
-    LOAD    s5, s2
+    LOAD    sF, s1
     CALL    UART_TX
-    LOAD    s5, s3
+    LOAD    sF, s2
     CALL    UART_TX
-    LOAD    s5, s4
+    LOAD    sF, s3
     CALL    UART_TX    
-    LOAD    s5, s6  ;Note: couldn't put payload in s5 
-                    ; because CALL UART_TX uses s5 as input register. TODO: fix uart_tx.
+    LOAD    sF, s4                  
     CALL    UART_TX
-    LOAD    s5, s7  
+    LOAD    sF, s5  
     CALL    UART_TX
-    LOAD    s5, s8
+    LOAD    sF, s6
     CALL    UART_TX
-    LOAD    s5, s9
+    LOAD    sF, s7
     CALL    UART_TX
     
     RETURN
@@ -741,82 +747,78 @@ ProcessReadBuffCfg:
     ; {regOut7, regOut6, regOut5, regOut4} <= preTriggerSampleCountMax;
     ;----
     ; 01 00 FF FF FF FF 00 00 
-    LOAD    s0, CMD_LOGCAP_READ_BUFF_CFG
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
+    LOAD    sF, CMD_LOGCAP_READ_BUFF_CFG
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    
     CALL    WaitForAck
     
     ; can't start with s0, because calls to UART_TX trashes it!!
-    INPUT   s1, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
-    INPUT   s2, PA_READ_LOGCAP_REGISTER1
-    INPUT   s3, PA_READ_LOGCAP_REGISTER2
-    INPUT   s4, PA_READ_LOGCAP_REGISTER3
-    INPUT   s6, PA_READ_LOGCAP_REGISTER4
-    ; s5 is missing here (did you find that odd?) because we skipped it.
-    ; CALL UART_TX expects s5 as input. But since we still need this data
-    ; after calling UART_TX. 
-    INPUT   s7, PA_READ_LOGCAP_REGISTER5
-    INPUT   s8, PA_READ_LOGCAP_REGISTER6
-    INPUT   s9, PA_READ_LOGCAP_REGISTER7
+    INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
+    INPUT   s1, PA_READ_LOGCAP_REGISTER1
+    INPUT   s2, PA_READ_LOGCAP_REGISTER2
+    INPUT   s3, PA_READ_LOGCAP_REGISTER3
+    INPUT   s4, PA_READ_LOGCAP_REGISTER4
+    INPUT   s5, PA_READ_LOGCAP_REGISTER5
+    INPUT   s6, PA_READ_LOGCAP_REGISTER6
+    INPUT   s7, PA_READ_LOGCAP_REGISTER7
     
-    LOAD    s5, CMD_LOGCAP_ACK
-    OUTPUT  s5, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we read the data 
     CALL    WaitForNonAck
 
     ;total = traceSizeByte0<<24 & traceSizeByte1<<16 & traceSizeByte2<<8 & traceSizeByte3<<0
 
     ;Send Packet to Frontend
     ;  Func Code      
-    LOAD    s5, CMD_CC_READ_BUFF_CFG
+    LOAD    sF, CMD_CC_READ_BUFF_CFG
     CALL    UART_TX
     
     ;  Payload Size - 8 Bytes
-    LOAD    s5, 08
+    LOAD    sF, 08
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     
     ; Payload
-    LOAD    s5, s1
+    LOAD    sF, s0
     CALL    UART_TX
-    LOAD    s5, s2
+    LOAD    sF, s1
     CALL    UART_TX
-    LOAD    s5, s3
+    LOAD    sF, s2
     CALL    UART_TX
-    LOAD    s5, s4
+    LOAD    sF, s3
     CALL    UART_TX    
-    LOAD    s5, s6  ;Note: couldn't put payload in s5 
-                    ; because CALL UART_TX uses s5 as input register. TODO: fix uart_tx.
+    LOAD    sF, s4                  
     CALL    UART_TX
-    LOAD    s5, s7  
+    LOAD    sF, s5  
     CALL    UART_TX
-    LOAD    s5, s8
+    LOAD    sF, s6
     CALL    UART_TX
-    LOAD    s5, s9
+    LOAD    sF, s7
     CALL    UART_TX
     RETURN
 ; -----------------------------------------------------------------------------
 SendHeartbeat:
     ; This is meant to acknowledge the Frontend.
     ;  Func Code      
-    LOAD    s5, CMD_CC_HEARTBEAT
+    LOAD    sF, CMD_CC_HEARTBEAT
     CALL    UART_TX
     
     ;  Payload Size - 1 Bytes
-    LOAD    s5, 01
+    LOAD    sF, 01
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     
     ; Payload - Status
-    INPUT   s5, PA_READ_LOGCAP_READ_STATUS 
+    INPUT   sF, PA_READ_LOGCAP_READ_STATUS 
     CALL    UART_TX
 
     RETURN
@@ -828,44 +830,65 @@ SendHeartbeat:
 SendCack:
     ; This is meant to acknowledge the Frontend.
     ;  Func Code      
-    LOAD    s5, CMD_CC_CACK
+    LOAD    sF, CMD_CC_CACK
     CALL    UART_TX
     
     ;  Payload Size - 1 Bytes
-    LOAD    s5, 01
+    LOAD    sF, 01
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
-    LOAD    s5, 00
+    LOAD    sF, 00
     CALL    UART_TX
     
     ; Payload
-    LOAD    s5, s6
+    LOAD    sF, s6
     CALL    UART_TX
 
     RETURN
 ; -----------------------------------------------------------------------------
 WaitForAck:
  WaitLoop1:    
-    INPUT   s0, PA_READ_LOGCAP_READ_STATUS
-    TEST    s0, 00001000'b          ;LogCap Ack Asserted?
+    INPUT   sF, PA_READ_LOGCAP_READ_STATUS
+    TEST    sF, 00001000'b          ;LogCap Ack Asserted?
     JUMP     Z,  WaitLoop1
     RETURN
+    
+; -----------------------------------------------------------------------------
+; Input
+;   sF - a unique identifier, to help identify where a time out occurred.
+WaitForAck_Timeout: 
+    LOAD sE, 250'd                            ;Timeout = 250 x (6 instructions x 2 clock cycles)
+wait_timeout: 
+    INPUT   sD, PA_READ_LOGCAP_READ_STATUS
+    TEST    sD, 00001000'b          ;LogCap Ack Asserted?             ;Z=0 and C=1 when data present
+    JUMP NZ, ready
+    SUB sE, 1'd
+    JUMP Z, timeout                                  ;Timeout returns with Z=1 and C=0
+    JUMP wait_timeout
+    ;
+timeout:    
+    LOAD sD, sF ;Save id of originator
+    STORE sD, SP_TIMEOUT_STATUS    
+    RETURN
+ready: 
+    
+    RETURN 
 ; -----------------------------------------------------------------------------
 WaitForNonAck:
  WaitLoop2:    
-    INPUT   s0, PA_READ_LOGCAP_READ_STATUS
-    TEST    s0, 00001000'b          ;LogCap Ack Deasserted?
+    INPUT   sF, PA_READ_LOGCAP_READ_STATUS
+    TEST    sF, 00001000'b          ;LogCap Ack Deasserted?
     JUMP     C, WaitLoop2
     RETURN    
 
 ; -----------------------------------------------------------------------------
 WriteLedsHi:  
-    LOAD    s0, s1                  ; Copy LEDs to s0 to preserve them
-    AND     s0, MSK_LEDS_HI         ; mask out unused bits
-    OUTPUT  s0, PA_WRITE_LED_15_8   ;PA_LEDS1508     ; and write pattern to the LEDs 
+    LOAD    sF, s1                  ; Copy LEDs to s0 to preserve them
+    AND     sF, MSK_LEDS_HI         ; mask out unused bits
+    OUTPUT  sF, PA_WRITE_LED_15_8   ;PA_LEDS1508     ; and write pattern to the LEDs 
     RETURN                                  ; and return                                
                 
 
