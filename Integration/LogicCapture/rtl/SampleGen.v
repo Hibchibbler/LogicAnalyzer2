@@ -210,8 +210,12 @@ always @(*) begin
     if (sampleNum_End[1:0] == 2'b11) begin
         sampleNum_End_pageAligned = sampleNum_End;
     end else begin
-        sampleNum_End_pageAligned = sampleNum_End-1;
-        sampleNum_End_pageAligned = {sampleNum_End_pageAligned[31:2], 2'b11};
+        if (sampleNum_End == 32'd0) begin
+            sampleNum_End_pageAligned = MAX_SAMPLE_NUMBER;
+        end else begin
+            sampleNum_End_pageAligned = sampleNum_End-1;
+            sampleNum_End_pageAligned = {sampleNum_End_pageAligned[31:2], 2'b11};
+        end
     end
     if (sampleNum_Begin[1:0] == 2'b00) begin
         sampleNum_Begin_pageAligned = sampleNum_Begin;
