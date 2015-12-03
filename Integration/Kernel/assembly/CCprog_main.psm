@@ -527,21 +527,21 @@ ProcessReadTraceData:
     CALL    UART_TX
     
     ;Add 8 to transferred tally - 32bit values require us to use craZy carry mechanism
-    FETCH   sF, SP_TRANSFERRED3                          
+    FETCH   sF, SP_TRANSFERRED0                          
     ADD     sF, 08                              
-    STORE   sF, SP_TRANSFERRED3
-    
-    FETCH   sF, SP_TRANSFERRED2
-    ADDCY   sF, 00
-    STORE   sF, SP_TRANSFERRED2
+    STORE   sF, SP_TRANSFERRED0
     
     FETCH   sF, SP_TRANSFERRED1
     ADDCY   sF, 00
     STORE   sF, SP_TRANSFERRED1
     
-    FETCH   sF, SP_TRANSFERRED0
+    FETCH   sF, SP_TRANSFERRED2
     ADDCY   sF, 00
-    STORE   sF, SP_TRANSFERRED0
+    STORE   sF, SP_TRANSFERRED2
+    
+    FETCH   sF, SP_TRANSFERRED3
+    ADDCY   sF, 00
+    STORE   sF, SP_TRANSFERRED3
     
     ;transferred - total != 0 ?  (crazy carrry shtuff)
     FETCH   sF, SP_TRANSFERRED0
