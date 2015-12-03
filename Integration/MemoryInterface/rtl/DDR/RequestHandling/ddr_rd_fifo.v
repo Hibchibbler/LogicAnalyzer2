@@ -46,7 +46,7 @@ module ddr_rd_fifo (
 // to be equal to that depth. This maximum is to
 // ensure the number of read requests sent out does
 // not cause an overflow condition with the FIFO buffers
-localparam MAX_READ_REQ = 64;
+localparam MAX_READ_REQ = 63;
 
 localparam IDLE = 2'b00, CHUNK1 = 2'b01, CHUNK2 = 2'b10;
 reg [1:0] state, nextState;
