@@ -286,10 +286,10 @@ Upkeep:
     COMPARE s6, 00      
     JUMP    Z,  FirmwareLoopEnd         ;If not, then skip LED toggle
     
-    FETCH   s1, SP_LED_15_8             ; So, toggle hi LEDs
-    XOR     s1, FF
-    STORE   s1, SP_LED_15_8
-    ;CALL    WriteLedsHi                 ;The interrupt fires once a second.    
+    FETCH   sF, SP_LED_15_8             ; So, toggle hi LEDs
+    XOR     sF, FF
+    STORE   sF, SP_LED_15_8
+    CALL    WriteLedsHi                 ;The interrupt fires once a second.    
     ;CALL    SendHeartbeat
     
     FETCH   s6, SP_SEM                  ; prepare for next interrupt
@@ -930,7 +930,6 @@ ready2:
     RETURN 
 ; -----------------------------------------------------------------------------
 WriteLedsHi:  
-    LOAD    sF, s1                  ; Copy LEDs to s0 to preserve them
     AND     sF, MSK_LEDS_HI         ; mask out unused bits
     OUTPUT  sF, PA_WRITE_LED_15_8   ;PA_LEDS1508     ; and write pattern to the LEDs 
     RETURN                                  ; and return                                
