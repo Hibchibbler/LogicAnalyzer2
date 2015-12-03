@@ -148,7 +148,9 @@ initial begin
     #100 btnCpuReset = ~`RESET;
 
     //for (i=0; i<100; i=i+1)
-    #10 write_uart(8'h01);
+    #10 cmd_abort();
+    #100 cmd_write_trig_cfg({{56{1'b0},8'h55});
+    #100 cmd_read_trig_cfg();
     
     // takes a total of ~22uS to get the full "HELLO World" back
     #22000;
@@ -157,16 +159,90 @@ initial begin
     //$finish;
 end
 
+task cmd_start;
+begin
+    write_uart({64{1'b0}, 8'h01});
+end
+endtask
+
+task cmd_abort;
+begin
+    write_uart({64{1'b0}, 8'h02});
+end
+endtask
+
+task cmd_write_trig_cfg;
+input [63:0] trig_cfg;
+begin
+    write_uart(trig_cfg, 8'h03});
+end
+endtask
+
+task cmd_write_buff_cfg;
+input [63:0] buff_cfg;
+begin
+    write_uart(buff_cfg, 8'h04});
+end
+endtask
+
+task cmd_read_trace_data;
+begin
+    write_uart({64{1'b0}, 8'h05});
+end
+endtask
+
+task cmd_read_trace_size;
+begin
+    write_uart({64{1'b0}, 8'h06});
+end
+endtask
+
+task cmd_read_trig_sample;
+begin
+    write_uart({64{1'b0}, 8'h07});
+end
+endtask
+
+task cmd_reset_logcap;
+begin
+    write_uart({64{1'b0}, 8'h09});
+end
+endtask
+
+task cmd_read_buff_cfg;
+begin
+    write_uart({64{1'b0}, 8'h0A});
+end
+endtask
+
+task cmd_read_trig_cfg;
+begin
+    write_uart({64{1'b0}, 8'h0B});
+end
+endtask
+
+
+
 task write_uart;
-input [7:0] data;
+input [71:0] data;
+integer count = 0;
 begin
     // make sure buffer isn't full
     //while (utx_buffer_full) 
-    @(posedge clk);
-        data_tx = data;
-        utx_buffer_write = 1'b1;
-    @(posedge clk);
-        utx_buffer_write = 1'b0;
+    
+    while (count < 9) begin
+        if (utx_buffer_full) begin // wait a cycle
+            @(posedge clk);
+        end 
+        else begin
+            @(posedge clk);
+                data_tx = data[count+7:count];
+                utx_buffer_write = 1'b1;
+            @(posedge clk);
+                utx_buffer_write = 1'b0;
+                count = count + 1;
+        end
+    end
 end
 endtask
 
