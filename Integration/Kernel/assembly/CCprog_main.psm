@@ -289,7 +289,7 @@ Upkeep:
     FETCH   s1, SP_LED_15_8             ; So, toggle hi LEDs
     XOR     s1, FF
     STORE   s1, SP_LED_15_8
-    CALL    WriteLedsHi                 ;The interrupt fires once a second.    
+    ;CALL    WriteLedsHi                 ;The interrupt fires once a second.    
     ;CALL    SendHeartbeat
     
     FETCH   s6, SP_SEM                  ; prepare for next interrupt
@@ -311,8 +311,11 @@ ProcessStart:
     ;We received a Start from the Frontend.
     ; Notify the LogCap that is should Start
     LOAD    s0, CMD_LOGCAP_START
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
-    CALL    WaitForAck    
+    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
+    
+    LOAD sF, 40
+    CALL    WaitForAck_Timeout    
+    
     LOAD    s0, CMD_LOGCAP_ACK
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
@@ -322,8 +325,11 @@ ProcessAbort:
     ;We received an Abort from the Frontend.
     ; Notify the LogCap that is should Abort
     LOAD    s0, CMD_LOGCAP_ABORT
-    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND    
+    
+    LOAD sF, 41
+    CALL    WaitForAck_Timeout
+    
     LOAD    s0, CMD_LOGCAP_ACK
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
@@ -369,7 +375,10 @@ ProcessWriteTrigCfg:
 
     LOAD    s0, CMD_LOGCAP_WRITE_TRIG_CFG
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    
+    LOAD sF, 42    
+    CALL    WaitForAck_Timeout
+    
     LOAD    s0, CMD_LOGCAP_ACK
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND     ; Notify LogCap that we know that they read what we wrote
     CALL    WaitForNonAck
@@ -415,7 +424,10 @@ ProcessWriteBuffCfg:
         
     LOAD    s0, CMD_LOGCAP_WRITE_BUFF_CFG
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    
+    LOAD sF, 43
+    CALL    WaitForAck_Timeout
+    
     LOAD    s0, CMD_LOGCAP_ACK
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
@@ -430,7 +442,9 @@ ProcessReadTraceData:
     ;  [ 1 byte        |   4 bytes     ]
     LOAD    sF, CMD_LOGCAP_READ_TRACE_SIZE
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    
+    LOAD sF, 44
+    CALL    WaitForAck_Timeout
     
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size. byte 1
     INPUT   s1, PA_READ_LOGCAP_REGISTER1; byte 2
@@ -477,7 +491,9 @@ ProcessReadTraceData:
     ;  Write 8 bytes (1 byte at a time) to Frontend
     LOAD    sF, CMD_LOGCAP_READ_TRACE_DATA
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    ; Notify LogCap that we want DUMP data
-    CALL    WaitForAck                                  ; Wait for LogCap to acknowledge
+    
+    LOAD sF, 45
+    CALL    WaitForAck_Timeout                                  ; Wait for LogCap to acknowledge
     
     INPUT   s0, PA_READ_LOGCAP_REGISTER0                ; Get 8 bytes of Dump Data
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
@@ -511,41 +527,41 @@ ProcessReadTraceData:
     CALL    UART_TX
     
     ;Add 8 to transferred tally - 32bit values require us to use craZy carry mechanism
-    FETCH   sF, SP_TRANSFERRED0                          
+    FETCH   sF, SP_TRANSFERRED3                          
     ADD     sF, 08                              
-    STORE   sF, SP_TRANSFERRED0
-    
-    FETCH   sF, SP_TRANSFERRED1
-    ADDCY   sF, 00
-    STORE   sF, SP_TRANSFERRED1
+    STORE   sF, SP_TRANSFERRED3
     
     FETCH   sF, SP_TRANSFERRED2
     ADDCY   sF, 00
     STORE   sF, SP_TRANSFERRED2
     
-    FETCH   sF, SP_TRANSFERRED3
+    FETCH   sF, SP_TRANSFERRED1
     ADDCY   sF, 00
-    STORE   sF, SP_TRANSFERRED3
+    STORE   sF, SP_TRANSFERRED1
+    
+    FETCH   sF, SP_TRANSFERRED0
+    ADDCY   sF, 00
+    STORE   sF, SP_TRANSFERRED0
     
     ;transferred - total != 0 ?  (crazy carrry shtuff)
     FETCH   sF, SP_TRANSFERRED0
     FETCH   sE, SP_READ_TRACE_SIZE0                          
-    COMPARE sF, sE                              
+    COMPARE sE, sF                              
     JUMP NZ, DoChunkTransfer
     
     FETCH   sF, SP_TRANSFERRED1
     FETCH   sE, SP_READ_TRACE_SIZE1
-    COMPARE sF, sE                              
+    COMPARE sE, sF
     JUMP NZ, DoChunkTransfer
     
     FETCH   sF, SP_TRANSFERRED2
     FETCH   sE, SP_READ_TRACE_SIZE2
-    COMPARE sF, sE                              
+    COMPARE sE, sF
     JUMP NZ, DoChunkTransfer
     
     FETCH   sF, SP_TRANSFERRED3
     FETCH   sE, SP_READ_TRACE_SIZE3
-    COMPARE sF, sE                              
+    COMPARE sE, sF
     JUMP NZ, DoChunkTransfer
                                     
                                 ; transferred - total == 0
@@ -554,7 +570,10 @@ ProcessReadTraceData:
 
     LOAD    sF, CMD_LOGCAP_RESET
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
-    CALL    WaitForAck
+    
+    LOAD sF, 46
+    CALL    WaitForAck_Timeout
+    
     LOAD    sF, CMD_LOGCAP_ACK
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
     CALL    WaitForNonAck
@@ -591,7 +610,10 @@ ProcessReadTraceSize:
     ; And send it to the Frontend
     LOAD    sF, CMD_LOGCAP_READ_TRACE_SIZE
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    
+    LOAD sF, 47
+    CALL    WaitForAck_Timeout
+    
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
     INPUT   s2, PA_READ_LOGCAP_REGISTER2
@@ -633,7 +655,10 @@ ProcessReadTriggerSample:
     ; And send it to the Frontend
     LOAD    sF, CMD_LOGCAP_READ_TRIGGER_SAMPLE
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
-    CALL    WaitForAck
+    
+    LOAD sF, 48
+    CALL    WaitForAck_Timeout
+    
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
     INPUT   s1, PA_READ_LOGCAP_REGISTER1
     INPUT   s2, PA_READ_LOGCAP_REGISTER2
@@ -683,8 +708,10 @@ ProcessReadTrigCfg:
     ; regOut7            <= {5'b00000, edgeType, edgeTriggerEnable, patternTriggerEnable};
     ;----
     LOAD    sF, CMD_LOGCAP_READ_TRIG_CFG
-    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    
-    CALL    WaitForAck
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND  
+    
+    LOAD sF, 49    
+    CALL    WaitForAck_Timeout
     
     ; can't start with s0, because calls to UART_TX trashes it!!
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
@@ -749,7 +776,9 @@ ProcessReadBuffCfg:
     ; 01 00 FF FF FF FF 00 00 
     LOAD    sF, CMD_LOGCAP_READ_BUFF_CFG
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND    
-    CALL    WaitForAck
+    
+    LOAD sF, 4A
+    CALL    WaitForAck_Timeout
     
     ; can't start with s0, because calls to UART_TX trashes it!!
     INPUT   s0, PA_READ_LOGCAP_REGISTER0; Get Total Trace Data Size
@@ -861,20 +890,18 @@ WaitForAck:
 ;   sF - a unique identifier, to help identify where a time out occurred.
 WaitForAck_Timeout: 
     LOAD sE, 250'd                            ;Timeout = 250 x (6 instructions x 2 clock cycles)
-wait_timeout: 
+wait_timeout1: 
     INPUT   sD, PA_READ_LOGCAP_READ_STATUS
     TEST    sD, 00001000'b          ;LogCap Ack Asserted?             ;Z=0 and C=1 when data present
-    JUMP NZ, ready
+    JUMP NZ, ready1
     SUB sE, 1'd
-    JUMP Z, timeout                                  ;Timeout returns with Z=1 and C=0
-    JUMP wait_timeout
+    JUMP Z, timeout1                                  ;Timeout returns with Z=1 and C=0
+    JUMP wait_timeout1
     ;
-timeout:    
-    LOAD sD, sF ;Save id of originator
-    STORE sD, SP_TIMEOUT_STATUS    
-    RETURN
-ready: 
-    
+timeout1:    
+    CALL WriteLedsHi
+    JUMP timeout1
+ready1:     
     RETURN 
 ; -----------------------------------------------------------------------------
 WaitForNonAck:
@@ -883,7 +910,24 @@ WaitForNonAck:
     TEST    sF, 00001000'b          ;LogCap Ack Deasserted?
     JUMP     C, WaitLoop2
     RETURN    
-
+; -----------------------------------------------------------------------------
+; Input
+;   sF - a unique identifier, to help identify where a time out occurred.
+WaitForNonAck_Timeout: 
+    LOAD sE, 250'd                            ;Timeout = 250 x (6 instructions x 2 clock cycles)
+wait_timeout2: 
+    INPUT   sD, PA_READ_LOGCAP_READ_STATUS
+    TEST    sD, 00001000'b          ;LogCap Ack Deasserted?             ;Z=0 and C=1 when data present
+    JUMP Z, ready2
+    SUB sE, 1'd
+    JUMP Z, timeout2                                 ;Timeout returns with Z=1 and C=0
+    JUMP wait_timeout2
+    ;
+timeout2:    
+    CALL WriteLedsHi
+    JUMP timeout2
+ready2:     
+    RETURN 
 ; -----------------------------------------------------------------------------
 WriteLedsHi:  
     LOAD    sF, s1                  ; Copy LEDs to s0 to preserve them
