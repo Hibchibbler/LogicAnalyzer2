@@ -190,13 +190,15 @@ assign urx_buffer_read = urx_buffer_data_present;
 // print any uart data coming out of the nexys4fpga
 always @(negedge urx_buffer_read) $display("%5d UART data out: %h", $time, data_rx);
 
+
+// actual test bench
 initial begin
     // reset the system
-    #5   btnCpuReset = `RESET;
+    #5   btnCpuReset =  `RESET;
     #100 btnCpuReset = ~`RESET;
 
     //for (i=0; i<100; i=i+1)
-    #10 cmd_abort();
+    #1000 cmd_abort();
     #100 cmd_write_trig_cfg({{56{1'b0},8'h55});
     #100 cmd_read_trig_cfg();
     
@@ -226,6 +228,10 @@ begin
 end
 endtask
 
+// maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
+// preTriggerSampleCountMax <= {regIn7, regIn6, regIn5, regIn4};
+// 4 lower bytes = maxSampleCount
+// 4 upper bytes = preTriggerSampleCountMax
 task cmd_write_buff_cfg;
 input [63:0] buff_cfg;
 begin
