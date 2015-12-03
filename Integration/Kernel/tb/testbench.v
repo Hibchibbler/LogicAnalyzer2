@@ -40,6 +40,22 @@ wire       utx_buffer_full;
 wire       utx_buffer_half_full;
 wire       utx_buffer_data_present;
 
+wire [15:0] ddr2_dq;
+wire [1:0]  ddr2_dqs_n;
+wire [1:0]  ddr2_dqs_p;
+wire [12:0] ddr2_addr;
+wire [2:0]  ddr2_ba;
+wire        ddr2_ras_n;
+wire        ddr2_cas_n;
+wire        ddr2_we_n;
+wire [0:0]  ddr2_ck_p;
+wire [0:0]  ddr2_ck_n;
+wire [0:0]  ddr2_cke;
+wire [0:0]  ddr2_cs_n;
+wire [1:0]  ddr2_dm;
+wire [0:0]  ddr2_odt;
+
+
 integer i;
 
 initial begin
@@ -101,7 +117,22 @@ nexys4fpga #(.TB_MODE(1)) target
     .uart_rxd(uart_txd),
     .uart_txd(uart_rxd),
     .JA(JA),
-    .JB(JB)
+    .JB(JB),
+    // ddr pins
+    .(ddr2_dq),
+    .(ddr2_dqs_n),
+    .(ddr2_dqs_p),
+    .(ddr2_addr),
+    .(ddr2_ba),
+    .(ddr2_ras_n),
+    .(ddr2_cas_n),
+    .(ddr2_we_n),
+    .(ddr2_ck_p),
+    .(ddr2_ck_n),
+    .(ddr2_cke),
+    .(ddr2_cs_n),
+    .(ddr2_dm),
+    .(ddr2_odt)
 );
 
 
