@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* analyzerReadbackFSM.v - Module is responsible for issuing
  * read requests to the memory interface at the rate throttled
  * by the data consumer.

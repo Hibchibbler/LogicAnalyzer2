@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* Module provides the register interface to the command and
  * control hub, encapsulate the base logic capturing peripheral,
  * and the logic required to read back data from memory and transfer

@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 module LogCap #(
     parameter SAMPLE_WIDTH        = 16,
     parameter SAMPLE_PACKET_WIDTH = 32

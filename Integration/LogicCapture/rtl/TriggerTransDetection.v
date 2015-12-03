@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* TriggerTransDetection.v - This module provides
  * combinational logic on the sample input to
  * detect different conditions that we care about.

@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* AnalyzerControlFSM.v - Module provides state transition
  * logic for the logic capture peripheral. It uses input
  * control signals start and abort as well as local status

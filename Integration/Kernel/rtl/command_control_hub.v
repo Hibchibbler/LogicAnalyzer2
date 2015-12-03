@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 module  command_control_hub
 (
     input  wire       clk,

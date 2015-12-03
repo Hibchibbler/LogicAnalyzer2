@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* SampleGen.v - Module generates sample packets
  * to send to the memory interface. A packet
  * includes the data associated with the packet +

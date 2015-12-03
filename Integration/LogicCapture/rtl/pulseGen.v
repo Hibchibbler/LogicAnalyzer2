@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 /* pulseGen.v - Produces a pulse of a desired length. Can
  *              also wait on a signal to be asserted before
  *              removing the pulse.

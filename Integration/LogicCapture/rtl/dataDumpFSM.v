@@ -1,3 +1,4 @@
+`timescale 1ps/100fs
 module dataDumpFSM (
     input clk,
     input reset,
