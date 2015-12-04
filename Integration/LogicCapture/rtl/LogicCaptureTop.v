@@ -404,9 +404,9 @@ endtask
 task loadTraceData;
 begin
     if (load_u) begin
-        loadData_L;
-    end else if (load_l) begin
         loadData_U;
+    end else if (load_l) begin
+        loadData_L;
     end
 end
 endtask
