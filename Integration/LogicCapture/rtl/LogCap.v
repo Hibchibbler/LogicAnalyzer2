@@ -41,13 +41,8 @@ always @(posedge clk) begin
         latestSample   <= {SAMPLE_WIDTH{1'b0}};
         previousSample <= {SAMPLE_WIDTH{1'b0}};
     end else begin
-        if (idle) begin
-            latestSample   <= latestSample;
-            previousSample <= previousSample;
-        end else begin
-            latestSample   <= sampleData;
-            previousSample <= latestSample;
-        end
+        latestSample   <= sampleData;
+        previousSample <= latestSample;
     end
 end
 
