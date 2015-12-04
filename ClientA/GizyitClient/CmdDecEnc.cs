@@ -25,7 +25,7 @@ namespace GizyitClient
             return ibuf;
         }
 
-        public static byte[] EncodeTrigCfg(int dp, int ach, int dcch, int et, int ete, int pte)
+        public static byte[] EncodeTrigCfg(int dp, int ach, int dcch, int ech, int et, int ete, int pte)
         {
             //8bit command code
             byte[] ibuf = new byte[9];
@@ -37,7 +37,7 @@ namespace GizyitClient
             ibuf[4] = (byte)((ach & 0x00FF) >> 0);
             ibuf[5] = (byte)((dcch & 0xFF00) >> 8);
             ibuf[6] = (byte)((dcch & 0x00FF) >> 0);
-            ibuf[7] = (byte)(et);
+            ibuf[7] = (byte)(ech);
             ibuf[8] = (byte)(((et & 0x1) << 2) + ((ete  & 0x1)<< 1) + ((pte & 0x1) << 0));
             return ibuf;
         }
