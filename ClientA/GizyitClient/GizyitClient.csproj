@@ -79,6 +79,7 @@
     <Compile Include="BitSelector.Designer.cs">
       <DependentUpon>BitSelector.cs</DependentUpon>
     </Compile>
+    <Compile Include="CmdDecEnc.cs" />
     <Compile Include="frmMain.cs">
       <SubType>Form</SubType>
     </Compile>

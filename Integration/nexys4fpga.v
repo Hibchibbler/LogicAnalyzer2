@@ -117,7 +117,7 @@ assign soc_reset = ~soc_resetn;
 SignalGenerator
 #(
     .NUM_CHANNELS(16),
-    .UPDATE_COUNT_BITS(16)
+    .UPDATE_COUNT_BITS(12)
 )
 sg
 (

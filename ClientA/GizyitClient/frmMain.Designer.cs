@@ -29,18 +29,18 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea3 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend3 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series3 = new System.Windows.Forms.DataVisualization.Charting.Series();
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea4 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend4 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series4 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea5 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend5 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series5 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea6 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend6 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series6 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea7 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend7 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series7 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea8 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend8 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series8 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chart2 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chart3 = new System.Windows.Forms.DataVisualization.Charting.Chart();
@@ -53,15 +53,36 @@
             this.txtRemote = new System.Windows.Forms.TextBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.btnSend = new System.Windows.Forms.Button();
+            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.label6 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.txtMaxPreTriggerSampleCount = new System.Windows.Forms.TextBox();
+            this.txtMaxSampleCount = new System.Windows.Forms.TextBox();
+            this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.chbxEdgeType = new System.Windows.Forms.CheckBox();
+            this.chbxPatternTriggerEnable = new System.Windows.Forms.CheckBox();
+            this.chbxEdgeTriggerEnable = new System.Windows.Forms.CheckBox();
+            this.txtEdgeChannel = new System.Windows.Forms.TextBox();
+            this.txtDontCareChannels = new System.Windows.Forms.TextBox();
+            this.label11 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.label9 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
-            this.label6 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
-            this.bitSelector2 = new GizyitClient.BitSelector();
-            this.bitSelector1 = new GizyitClient.BitSelector();
+            this.txtDesiredPattern = new System.Windows.Forms.TextBox();
+            this.txtActiveChannels = new System.Windows.Forms.TextBox();
+            this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.btnGetBuffCfg = new System.Windows.Forms.Button();
+            this.btnResetHW = new System.Windows.Forms.Button();
+            this.btnGetTriggerSample = new System.Windows.Forms.Button();
+            this.btnGetTrace = new System.Windows.Forms.Button();
+            this.btnAbort = new System.Windows.Forms.Button();
+            this.btnStart = new System.Windows.Forms.Button();
+            this.btnSetTrigCfg = new System.Windows.Forms.Button();
+            this.btnGetTrigCfg = new System.Windows.Forms.Button();
+            this.btnGetTraceSize = new System.Windows.Forms.Button();
+            this.btnGetStatus = new System.Windows.Forms.Button();
+            this.btnSetBuffCfg = new System.Windows.Forms.Button();
             this.worker = new System.ComponentModel.BackgroundWorker();
             this.serialPort = new System.IO.Ports.SerialPort(this.components);
             this.btnClear = new System.Windows.Forms.Button();
@@ -80,6 +101,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.chart4)).BeginInit();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.tabControl1.SuspendLayout();
+            this.tabPage1.SuspendLayout();
+            this.tabPage2.SuspendLayout();
+            this.tabPage4.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.SuspendLayout();
@@ -87,19 +112,19 @@
             // chart1
             // 
             this.chart1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            chartArea1.AxisX.MajorGrid.Enabled = false;
-            chartArea1.AxisY.MajorGrid.Enabled = false;
-            chartArea1.Name = "ChartArea1";
-            this.chart1.ChartAreas.Add(chartArea1);
-            legend1.Name = "Legend1";
-            this.chart1.Legends.Add(legend1);
+            chartArea5.AxisX.MajorGrid.Enabled = false;
+            chartArea5.AxisY.MajorGrid.Enabled = false;
+            chartArea5.Name = "ChartArea1";
+            this.chart1.ChartAreas.Add(chartArea5);
+            legend5.Name = "Legend1";
+            this.chart1.Legends.Add(legend5);
             this.chart1.Location = new System.Drawing.Point(0, 26);
             this.chart1.Name = "chart1";
-            series1.ChartArea = "ChartArea1";
-            series1.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
-            series1.Legend = "Legend1";
-            series1.Name = "Series1";
-            this.chart1.Series.Add(series1);
+            series5.ChartArea = "ChartArea1";
+            series5.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
+            series5.Legend = "Legend1";
+            series5.Name = "Series1";
+            this.chart1.Series.Add(series5);
             this.chart1.Size = new System.Drawing.Size(931, 97);
             this.chart1.TabIndex = 0;
             this.chart1.Text = "mainChart";
@@ -113,19 +138,19 @@
             // chart2
             // 
             this.chart2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            chartArea2.AxisX.MajorGrid.Enabled = false;
-            chartArea2.AxisY.MajorGrid.Enabled = false;
-            chartArea2.Name = "ChartArea1";
-            this.chart2.ChartAreas.Add(chartArea2);
-            legend2.Name = "Legend1";
-            this.chart2.Legends.Add(legend2);
+            chartArea6.AxisX.MajorGrid.Enabled = false;
+            chartArea6.AxisY.MajorGrid.Enabled = false;
+            chartArea6.Name = "ChartArea1";
+            this.chart2.ChartAreas.Add(chartArea6);
+            legend6.Name = "Legend1";
+            this.chart2.Legends.Add(legend6);
             this.chart2.Location = new System.Drawing.Point(0, 126);
             this.chart2.Name = "chart2";
-            series2.ChartArea = "ChartArea1";
-            series2.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
-            series2.Legend = "Legend1";
-            series2.Name = "Series1";
-            this.chart2.Series.Add(series2);
+            series6.ChartArea = "ChartArea1";
+            series6.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
+            series6.Legend = "Legend1";
+            series6.Name = "Series1";
+            this.chart2.Series.Add(series6);
             this.chart2.Size = new System.Drawing.Size(931, 97);
             this.chart2.TabIndex = 16;
             this.chart2.Text = "mainChart";
@@ -139,19 +164,19 @@
             // chart3
             // 
             this.chart3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            chartArea3.AxisX.MajorGrid.Enabled = false;
-            chartArea3.AxisY.MajorGrid.Enabled = false;
-            chartArea3.Name = "ChartArea1";
-            this.chart3.ChartAreas.Add(chartArea3);
-            legend3.Name = "Legend1";
-            this.chart3.Legends.Add(legend3);
+            chartArea7.AxisX.MajorGrid.Enabled = false;
+            chartArea7.AxisY.MajorGrid.Enabled = false;
+            chartArea7.Name = "ChartArea1";
+            this.chart3.ChartAreas.Add(chartArea7);
+            legend7.Name = "Legend1";
+            this.chart3.Legends.Add(legend7);
             this.chart3.Location = new System.Drawing.Point(0, 227);
             this.chart3.Name = "chart3";
-            series3.ChartArea = "ChartArea1";
-            series3.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
-            series3.Legend = "Legend1";
-            series3.Name = "Series1";
-            this.chart3.Series.Add(series3);
+            series7.ChartArea = "ChartArea1";
+            series7.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
+            series7.Legend = "Legend1";
+            series7.Name = "Series1";
+            this.chart3.Series.Add(series7);
             this.chart3.Size = new System.Drawing.Size(931, 97);
             this.chart3.TabIndex = 17;
             this.chart3.Text = "mainChart";
@@ -165,19 +190,19 @@
             // chart4
             // 
             this.chart4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            chartArea4.AxisX.MajorGrid.Enabled = false;
-            chartArea4.AxisY.MajorGrid.Enabled = false;
-            chartArea4.Name = "ChartArea1";
-            this.chart4.ChartAreas.Add(chartArea4);
-            legend4.Name = "Legend1";
-            this.chart4.Legends.Add(legend4);
+            chartArea8.AxisX.MajorGrid.Enabled = false;
+            chartArea8.AxisY.MajorGrid.Enabled = false;
+            chartArea8.Name = "ChartArea1";
+            this.chart4.ChartAreas.Add(chartArea8);
+            legend8.Name = "Legend1";
+            this.chart4.Legends.Add(legend8);
             this.chart4.Location = new System.Drawing.Point(0, 327);
             this.chart4.Name = "chart4";
-            series4.ChartArea = "ChartArea1";
-            series4.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
-            series4.Legend = "Legend1";
-            series4.Name = "Series1";
-            this.chart4.Series.Add(series4);
+            series8.ChartArea = "ChartArea1";
+            series8.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Spline;
+            series8.Legend = "Legend1";
+            series8.Name = "Series1";
+            this.chart4.Series.Add(series8);
             this.chart4.Size = new System.Drawing.Size(931, 97);
             this.chart4.TabIndex = 18;
             this.chart4.Text = "mainChart";
@@ -262,100 +287,322 @@
             // groupBox2
             // 
             this.groupBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.groupBox2.Controls.Add(this.btnSend);
-            this.groupBox2.Controls.Add(this.label10);
-            this.groupBox2.Controls.Add(this.label9);
-            this.groupBox2.Controls.Add(this.label8);
-            this.groupBox2.Controls.Add(this.label7);
-            this.groupBox2.Controls.Add(this.label6);
-            this.groupBox2.Controls.Add(this.label5);
-            this.groupBox2.Controls.Add(this.bitSelector2);
-            this.groupBox2.Controls.Add(this.bitSelector1);
+            this.groupBox2.Controls.Add(this.tabControl1);
             this.groupBox2.Location = new System.Drawing.Point(134, 428);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(310, 202);
+            this.groupBox2.Size = new System.Drawing.Size(325, 202);
             this.groupBox2.TabIndex = 10;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Analyzer Control";
             // 
-            // btnSend
+            // tabControl1
             // 
-            this.btnSend.Enabled = false;
-            this.btnSend.Location = new System.Drawing.Point(36, 155);
-            this.btnSend.Name = "btnSend";
-            this.btnSend.Size = new System.Drawing.Size(195, 36);
-            this.btnSend.TabIndex = 8;
-            this.btnSend.Text = "Send";
-            this.btnSend.UseVisualStyleBackColor = true;
-            this.btnSend.Click += new System.EventHandler(this.btnGeneric_Click);
+            this.tabControl1.Controls.Add(this.tabPage1);
+            this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Controls.Add(this.tabPage4);
+            this.tabControl1.Location = new System.Drawing.Point(0, 16);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(325, 180);
+            this.tabControl1.TabIndex = 9;
             // 
-            // label10
+            // tabPage1
             // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(0, 155);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(30, 13);
-            this.label10.TabIndex = 16;
-            this.label10.Text = "MSB";
-            // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(237, 155);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(27, 13);
-            this.label9.TabIndex = 15;
-            this.label9.Text = "LSB";
-            // 
-            // label8
-            // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(260, 134);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(42, 13);
-            this.label8.TabIndex = 14;
-            this.label8.Text = "Word 3";
-            // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(260, 98);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(42, 13);
-            this.label7.TabIndex = 13;
-            this.label7.Text = "Word 2";
+            this.tabPage1.Controls.Add(this.label6);
+            this.tabPage1.Controls.Add(this.label5);
+            this.tabPage1.Controls.Add(this.txtMaxPreTriggerSampleCount);
+            this.tabPage1.Controls.Add(this.txtMaxSampleCount);
+            this.tabPage1.Location = new System.Drawing.Point(4, 22);
+            this.tabPage1.Name = "tabPage1";
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage1.Size = new System.Drawing.Size(317, 154);
+            this.tabPage1.TabIndex = 0;
+            this.tabPage1.Text = "Buffer";
+            this.tabPage1.UseVisualStyleBackColor = true;
             // 
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(260, 64);
+            this.label6.Location = new System.Drawing.Point(8, 31);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(42, 13);
-            this.label6.TabIndex = 12;
-            this.label6.Text = "Word 1";
+            this.label6.Size = new System.Drawing.Size(148, 13);
+            this.label6.TabIndex = 3;
+            this.label6.Text = "Max PreTrigger Sample Count";
             // 
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(260, 33);
+            this.label5.Location = new System.Drawing.Point(60, 11);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(42, 13);
-            this.label5.TabIndex = 11;
-            this.label5.Text = "Word 0";
+            this.label5.Size = new System.Drawing.Size(96, 13);
+            this.label5.TabIndex = 2;
+            this.label5.Text = "Max Sample Count";
             // 
-            // bitSelector2
+            // txtMaxPreTriggerSampleCount
             // 
-            this.bitSelector2.Location = new System.Drawing.Point(6, 16);
-            this.bitSelector2.Name = "bitSelector2";
-            this.bitSelector2.Size = new System.Drawing.Size(126, 144);
-            this.bitSelector2.TabIndex = 10;
+            this.txtMaxPreTriggerSampleCount.Location = new System.Drawing.Point(162, 28);
+            this.txtMaxPreTriggerSampleCount.Name = "txtMaxPreTriggerSampleCount";
+            this.txtMaxPreTriggerSampleCount.Size = new System.Drawing.Size(134, 20);
+            this.txtMaxPreTriggerSampleCount.TabIndex = 1;
+            this.txtMaxPreTriggerSampleCount.Text = "0";
             // 
-            // bitSelector1
+            // txtMaxSampleCount
             // 
-            this.bitSelector1.Location = new System.Drawing.Point(139, 16);
-            this.bitSelector1.Name = "bitSelector1";
-            this.bitSelector1.Size = new System.Drawing.Size(126, 144);
-            this.bitSelector1.TabIndex = 9;
+            this.txtMaxSampleCount.Location = new System.Drawing.Point(162, 8);
+            this.txtMaxSampleCount.Name = "txtMaxSampleCount";
+            this.txtMaxSampleCount.Size = new System.Drawing.Size(134, 20);
+            this.txtMaxSampleCount.TabIndex = 0;
+            this.txtMaxSampleCount.Text = "500";
+            // 
+            // tabPage2
+            // 
+            this.tabPage2.Controls.Add(this.chbxEdgeType);
+            this.tabPage2.Controls.Add(this.chbxPatternTriggerEnable);
+            this.tabPage2.Controls.Add(this.chbxEdgeTriggerEnable);
+            this.tabPage2.Controls.Add(this.txtEdgeChannel);
+            this.tabPage2.Controls.Add(this.txtDontCareChannels);
+            this.tabPage2.Controls.Add(this.label11);
+            this.tabPage2.Controls.Add(this.label10);
+            this.tabPage2.Controls.Add(this.label9);
+            this.tabPage2.Controls.Add(this.label8);
+            this.tabPage2.Controls.Add(this.txtDesiredPattern);
+            this.tabPage2.Controls.Add(this.txtActiveChannels);
+            this.tabPage2.Location = new System.Drawing.Point(4, 22);
+            this.tabPage2.Name = "tabPage2";
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(317, 154);
+            this.tabPage2.TabIndex = 1;
+            this.tabPage2.Text = "Triggers";
+            this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // chbxEdgeType
+            // 
+            this.chbxEdgeType.AutoSize = true;
+            this.chbxEdgeType.Location = new System.Drawing.Point(33, 94);
+            this.chbxEdgeType.Name = "chbxEdgeType";
+            this.chbxEdgeType.Size = new System.Drawing.Size(78, 17);
+            this.chbxEdgeType.TabIndex = 19;
+            this.chbxEdgeType.Text = "Edge Type";
+            this.chbxEdgeType.UseVisualStyleBackColor = true;
+            // 
+            // chbxPatternTriggerEnable
+            // 
+            this.chbxPatternTriggerEnable.AutoSize = true;
+            this.chbxPatternTriggerEnable.Location = new System.Drawing.Point(117, 113);
+            this.chbxPatternTriggerEnable.Name = "chbxPatternTriggerEnable";
+            this.chbxPatternTriggerEnable.Size = new System.Drawing.Size(132, 17);
+            this.chbxPatternTriggerEnable.TabIndex = 18;
+            this.chbxPatternTriggerEnable.Text = "Pattern Trigger Enable";
+            this.chbxPatternTriggerEnable.UseVisualStyleBackColor = true;
+            // 
+            // chbxEdgeTriggerEnable
+            // 
+            this.chbxEdgeTriggerEnable.AutoSize = true;
+            this.chbxEdgeTriggerEnable.Location = new System.Drawing.Point(117, 94);
+            this.chbxEdgeTriggerEnable.Name = "chbxEdgeTriggerEnable";
+            this.chbxEdgeTriggerEnable.Size = new System.Drawing.Size(123, 17);
+            this.chbxEdgeTriggerEnable.TabIndex = 17;
+            this.chbxEdgeTriggerEnable.Text = "Edge Trigger Enable";
+            this.chbxEdgeTriggerEnable.UseVisualStyleBackColor = true;
+            // 
+            // txtEdgeChannel
+            // 
+            this.txtEdgeChannel.Location = new System.Drawing.Point(117, 68);
+            this.txtEdgeChannel.Name = "txtEdgeChannel";
+            this.txtEdgeChannel.Size = new System.Drawing.Size(179, 20);
+            this.txtEdgeChannel.TabIndex = 16;
+            this.txtEdgeChannel.Text = "0";
+            // 
+            // txtDontCareChannels
+            // 
+            this.txtDontCareChannels.Location = new System.Drawing.Point(117, 48);
+            this.txtDontCareChannels.Name = "txtDontCareChannels";
+            this.txtDontCareChannels.Size = new System.Drawing.Size(179, 20);
+            this.txtDontCareChannels.TabIndex = 15;
+            this.txtDontCareChannels.Text = "65535";
+            // 
+            // label11
+            // 
+            this.label11.AutoSize = true;
+            this.label11.Location = new System.Drawing.Point(37, 71);
+            this.label11.Name = "label11";
+            this.label11.Size = new System.Drawing.Size(74, 13);
+            this.label11.TabIndex = 11;
+            this.label11.Text = "Edge Channel";
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(9, 51);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(102, 13);
+            this.label10.TabIndex = 10;
+            this.label10.Text = "Dont Care Channels";
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(27, 30);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(84, 13);
+            this.label9.TabIndex = 9;
+            this.label9.Text = "Active Channels";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(31, 8);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(80, 13);
+            this.label8.TabIndex = 8;
+            this.label8.Text = "Desired Pattern";
+            // 
+            // txtDesiredPattern
+            // 
+            this.txtDesiredPattern.Location = new System.Drawing.Point(117, 8);
+            this.txtDesiredPattern.Name = "txtDesiredPattern";
+            this.txtDesiredPattern.Size = new System.Drawing.Size(179, 20);
+            this.txtDesiredPattern.TabIndex = 5;
+            this.txtDesiredPattern.Text = "0";
+            // 
+            // txtActiveChannels
+            // 
+            this.txtActiveChannels.Location = new System.Drawing.Point(117, 28);
+            this.txtActiveChannels.Name = "txtActiveChannels";
+            this.txtActiveChannels.Size = new System.Drawing.Size(179, 20);
+            this.txtActiveChannels.TabIndex = 4;
+            this.txtActiveChannels.Text = "65535";
+            // 
+            // tabPage4
+            // 
+            this.tabPage4.Controls.Add(this.btnGetBuffCfg);
+            this.tabPage4.Controls.Add(this.btnResetHW);
+            this.tabPage4.Controls.Add(this.btnGetTriggerSample);
+            this.tabPage4.Controls.Add(this.btnGetTrace);
+            this.tabPage4.Controls.Add(this.btnAbort);
+            this.tabPage4.Controls.Add(this.btnStart);
+            this.tabPage4.Controls.Add(this.btnSetTrigCfg);
+            this.tabPage4.Controls.Add(this.btnGetTrigCfg);
+            this.tabPage4.Controls.Add(this.btnGetTraceSize);
+            this.tabPage4.Controls.Add(this.btnGetStatus);
+            this.tabPage4.Controls.Add(this.btnSetBuffCfg);
+            this.tabPage4.Location = new System.Drawing.Point(4, 22);
+            this.tabPage4.Name = "tabPage4";
+            this.tabPage4.Size = new System.Drawing.Size(317, 154);
+            this.tabPage4.TabIndex = 3;
+            this.tabPage4.Text = "Control";
+            this.tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // btnGetBuffCfg
+            // 
+            this.btnGetBuffCfg.Location = new System.Drawing.Point(26, 3);
+            this.btnGetBuffCfg.Name = "btnGetBuffCfg";
+            this.btnGetBuffCfg.Size = new System.Drawing.Size(74, 23);
+            this.btnGetBuffCfg.TabIndex = 21;
+            this.btnGetBuffCfg.Text = "Get Buff Cfg";
+            this.btnGetBuffCfg.UseVisualStyleBackColor = true;
+            this.btnGetBuffCfg.Click += new System.EventHandler(this.btnGetBuffCfg_Click);
+            // 
+            // btnResetHW
+            // 
+            this.btnResetHW.Enabled = false;
+            this.btnResetHW.Location = new System.Drawing.Point(217, 131);
+            this.btnResetHW.Name = "btnResetHW";
+            this.btnResetHW.Size = new System.Drawing.Size(74, 23);
+            this.btnResetHW.TabIndex = 20;
+            this.btnResetHW.Text = "Reset HW";
+            this.btnResetHW.UseVisualStyleBackColor = true;
+            this.btnResetHW.Click += new System.EventHandler(this.btnResetHW_Click);
+            // 
+            // btnGetTriggerSample
+            // 
+            this.btnGetTriggerSample.Location = new System.Drawing.Point(61, 61);
+            this.btnGetTriggerSample.Name = "btnGetTriggerSample";
+            this.btnGetTriggerSample.Size = new System.Drawing.Size(74, 23);
+            this.btnGetTriggerSample.TabIndex = 19;
+            this.btnGetTriggerSample.Text = "Get TrSamp";
+            this.btnGetTriggerSample.UseVisualStyleBackColor = true;
+            this.btnGetTriggerSample.Click += new System.EventHandler(this.btnGetTriggerSample_Click);
+            // 
+            // btnGetTrace
+            // 
+            this.btnGetTrace.Location = new System.Drawing.Point(61, 119);
+            this.btnGetTrace.Name = "btnGetTrace";
+            this.btnGetTrace.Size = new System.Drawing.Size(74, 23);
+            this.btnGetTrace.TabIndex = 18;
+            this.btnGetTrace.Text = "Get Trace";
+            this.btnGetTrace.UseVisualStyleBackColor = true;
+            this.btnGetTrace.Click += new System.EventHandler(this.btnGetTrace_Click);
+            // 
+            // btnAbort
+            // 
+            this.btnAbort.Location = new System.Drawing.Point(217, 32);
+            this.btnAbort.Name = "btnAbort";
+            this.btnAbort.Size = new System.Drawing.Size(74, 23);
+            this.btnAbort.TabIndex = 17;
+            this.btnAbort.Text = "Abort";
+            this.btnAbort.UseVisualStyleBackColor = true;
+            this.btnAbort.Click += new System.EventHandler(this.btnAbort_Click);
+            // 
+            // btnStart
+            // 
+            this.btnStart.Location = new System.Drawing.Point(217, 3);
+            this.btnStart.Name = "btnStart";
+            this.btnStart.Size = new System.Drawing.Size(74, 23);
+            this.btnStart.TabIndex = 16;
+            this.btnStart.Text = "Start";
+            this.btnStart.UseVisualStyleBackColor = true;
+            this.btnStart.Click += new System.EventHandler(this.btnStart_Click);
+            // 
+            // btnSetTrigCfg
+            // 
+            this.btnSetTrigCfg.Location = new System.Drawing.Point(106, 32);
+            this.btnSetTrigCfg.Name = "btnSetTrigCfg";
+            this.btnSetTrigCfg.Size = new System.Drawing.Size(74, 23);
+            this.btnSetTrigCfg.TabIndex = 15;
+            this.btnSetTrigCfg.Text = "Set Trig Cfg";
+            this.btnSetTrigCfg.UseVisualStyleBackColor = true;
+            this.btnSetTrigCfg.Click += new System.EventHandler(this.btnSetTrigCfg_Click);
+            // 
+            // btnGetTrigCfg
+            // 
+            this.btnGetTrigCfg.Location = new System.Drawing.Point(106, 3);
+            this.btnGetTrigCfg.Name = "btnGetTrigCfg";
+            this.btnGetTrigCfg.Size = new System.Drawing.Size(74, 23);
+            this.btnGetTrigCfg.TabIndex = 14;
+            this.btnGetTrigCfg.Text = "Get Trig Cfg";
+            this.btnGetTrigCfg.UseVisualStyleBackColor = true;
+            this.btnGetTrigCfg.Click += new System.EventHandler(this.btnGetTrigCfg_Click);
+            // 
+            // btnGetTraceSize
+            // 
+            this.btnGetTraceSize.Location = new System.Drawing.Point(61, 90);
+            this.btnGetTraceSize.Name = "btnGetTraceSize";
+            this.btnGetTraceSize.Size = new System.Drawing.Size(74, 23);
+            this.btnGetTraceSize.TabIndex = 13;
+            this.btnGetTraceSize.Text = "Get TrSize";
+            this.btnGetTraceSize.UseVisualStyleBackColor = true;
+            this.btnGetTraceSize.Click += new System.EventHandler(this.btnGetTraceSize_Click);
+            // 
+            // btnGetStatus
+            // 
+            this.btnGetStatus.Location = new System.Drawing.Point(217, 61);
+            this.btnGetStatus.Name = "btnGetStatus";
+            this.btnGetStatus.Size = new System.Drawing.Size(74, 23);
+            this.btnGetStatus.TabIndex = 12;
+            this.btnGetStatus.Text = "Get Status";
+            this.btnGetStatus.UseVisualStyleBackColor = true;
+            this.btnGetStatus.Click += new System.EventHandler(this.btnGetStatus_Click);
+            // 
+            // btnSetBuffCfg
+            // 
+            this.btnSetBuffCfg.Location = new System.Drawing.Point(26, 32);
+            this.btnSetBuffCfg.Name = "btnSetBuffCfg";
+            this.btnSetBuffCfg.Size = new System.Drawing.Size(74, 23);
+            this.btnSetBuffCfg.TabIndex = 11;
+            this.btnSetBuffCfg.Text = "Set Buff Cfg";
+            this.btnSetBuffCfg.UseVisualStyleBackColor = true;
+            this.btnSetBuffCfg.Click += new System.EventHandler(this.btnSetBuffCfg_Click);
             // 
             // worker
             // 
@@ -397,14 +644,14 @@
             // loadTraceToolStripMenuItem
             // 
             this.loadTraceToolStripMenuItem.Name = "loadTraceToolStripMenuItem";
-            this.loadTraceToolStripMenuItem.Size = new System.Drawing.Size(153, 22);
+            this.loadTraceToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.loadTraceToolStripMenuItem.Text = "&Load Trace...";
             this.loadTraceToolStripMenuItem.Click += new System.EventHandler(this.loadTraceToolStripMenuItem_Click);
             // 
             // saveTraceAsToolStripMenuItem
             // 
             this.saveTraceAsToolStripMenuItem.Name = "saveTraceAsToolStripMenuItem";
-            this.saveTraceAsToolStripMenuItem.Size = new System.Drawing.Size(153, 22);
+            this.saveTraceAsToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.saveTraceAsToolStripMenuItem.Text = "&Save Trace as...";
             this.saveTraceAsToolStripMenuItem.Click += new System.EventHandler(this.saveTraceAsToolStripMenuItem_Click);
             // 
@@ -490,7 +737,12 @@
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
+            this.tabControl1.ResumeLayout(false);
+            this.tabPage1.ResumeLayout(false);
+            this.tabPage1.PerformLayout();
+            this.tabPage2.ResumeLayout(false);
+            this.tabPage2.PerformLayout();
+            this.tabPage4.ResumeLayout(false);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.groupBox3.ResumeLayout(false);
@@ -516,8 +768,6 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.ComponentModel.BackgroundWorker worker;
         private System.IO.Ports.SerialPort serialPort;
-        private System.Windows.Forms.Button btnSend;
-        private BitSelector bitSelector1;
         private System.Windows.Forms.Button btnClear;
         private System.Windows.Forms.MenuStrip menuStrip1;
         private System.Windows.Forms.TextBox txtLocal;
@@ -525,16 +775,39 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Button btnClearLocal;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Label label5;
-        private BitSelector bitSelector2;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem loadTraceToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem saveTraceAsToolStripMenuItem;
+        private System.Windows.Forms.TabControl tabControl1;
+        private System.Windows.Forms.TabPage tabPage1;
+        private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.TextBox txtMaxPreTriggerSampleCount;
+        private System.Windows.Forms.TextBox txtMaxSampleCount;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.TextBox txtDesiredPattern;
+        private System.Windows.Forms.TextBox txtActiveChannels;
+        private System.Windows.Forms.CheckBox chbxEdgeType;
+        private System.Windows.Forms.CheckBox chbxPatternTriggerEnable;
+        private System.Windows.Forms.CheckBox chbxEdgeTriggerEnable;
+        private System.Windows.Forms.TextBox txtEdgeChannel;
+        private System.Windows.Forms.TextBox txtDontCareChannels;
+        private System.Windows.Forms.Label label11;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Button btnGetStatus;
+        private System.Windows.Forms.Button btnSetBuffCfg;
+        private System.Windows.Forms.TabPage tabPage4;
+        private System.Windows.Forms.Button btnResetHW;
+        private System.Windows.Forms.Button btnGetTriggerSample;
+        private System.Windows.Forms.Button btnGetTrace;
+        private System.Windows.Forms.Button btnAbort;
+        private System.Windows.Forms.Button btnStart;
+        private System.Windows.Forms.Button btnSetTrigCfg;
+        private System.Windows.Forms.Button btnGetTrigCfg;
+        private System.Windows.Forms.Button btnGetTraceSize;
+        private System.Windows.Forms.Button btnGetBuffCfg;
 
     }
 }

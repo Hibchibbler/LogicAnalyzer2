@@ -45,7 +45,7 @@ namespace GizyitClient
 
                 worker.RunWorkerAsync();
                 btnConnect.Text = "Disconnect";
-                btnSend.Enabled = true;
+
             }
             else
             {
@@ -53,7 +53,7 @@ namespace GizyitClient
                 System.Threading.Thread.Sleep(1000);
                 serialPort.Close();
                 btnConnect.Text = "Connect";
-                btnSend.Enabled = false;
+
             }
         }
         
@@ -66,11 +66,15 @@ namespace GizyitClient
 
         private enum FunctionCode
         {
-            TEXT,
-            DATA,
-            ERROR,                        
-            DEBUG,
-            CMDACK
+            TRACE_DATA=0x5,
+            TRACE_SIZE=0x6,
+            TRIGGER_SAMPLE=0x7,
+            BUFF_CFG=0xA,
+            TRIG_CFG=0xB,
+            CACK=0xDD,
+            STATUS=0xEE,
+            HEARTBEAT=0xFF
+            
         }
         private enum FunctionSubCode
         {
@@ -78,21 +82,18 @@ namespace GizyitClient
         }
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-            int pc = 0;
             int funCode=0;
-            int funSubCode=0;
             int payloadSize = 0;
-            int completionState = 0;
-            int ret = 0;
+
             
             int state = 0;
             int totalToRead = 0;
 
 
-            char[] chunk = null;// new char[6];
-            byte[] chunk2 = null;
+            char[] chunk = null;
+
             int actualSizeRead = 0;
-            totalToRead = 6;
+            totalToRead = 5;
 
             while (true)
             {
@@ -121,8 +122,8 @@ namespace GizyitClient
                     case 0://Initialize stuff
                         serialPort.ReadTimeout = 500;
                         actualSizeRead = 0;
-                        totalToRead = 6;
-                        chunk = new char[6];
+                        totalToRead = 5;
+                        chunk = new char[totalToRead];
                         state = 1;                        
                         break;
                     case 1://Read message header (if there is one)
@@ -131,8 +132,10 @@ namespace GizyitClient
                         {
                             while (actualSizeRead < totalToRead)
                             {
-                                int s = serialPort.Read(chunk, actualSizeRead, totalToRead - actualSizeRead);
-                                actualSizeRead += s;
+                                //int s = serialPort.Read(chunk, actualSizeRead, totalToRead - actualSizeRead);
+                                int s = serialPort.ReadByte();
+                                chunk[actualSizeRead] = (char)s;
+                                actualSizeRead += 1;
                             }                    
                         }
                         catch (TimeoutException toe)
@@ -143,17 +146,15 @@ namespace GizyitClient
 
                         //We made it past state 1 - we have header
                         funCode = (int)(chunk[0]);
-                        funSubCode = (int)(chunk[1]);
-                        payloadSize = (((int)(chunk[2]) << 24) | ((int)(chunk[3]) << 16) | ((int)(chunk[4]) << 8) | ((int)(chunk[5]) << 0));
+
+                        payloadSize = (((int)(chunk[4]) << 24) | ((int)(chunk[3]) << 16) | ((int)(chunk[2]) << 8) | ((int)(chunk[1]) << 0));
 
                         actualSizeRead = 0;
                         totalToRead = payloadSize;
+                        chunk = null;
                         chunk = new char[totalToRead];
-                        chunk2 = new byte[totalToRead];
-
-                        
-                        if (funCode == 1 && funSubCode == 0)
-                        {//We are downloading a trace, so prepare the dataStore
+                        if (funCode == (int)FunctionCode.TRACE_DATA)
+                        {
                             dataStore.Clear();
                         }
                         state = 2;
@@ -165,71 +166,96 @@ namespace GizyitClient
                         {
                             while (actualSizeRead < totalToRead)
                             {
+                             
                                 int s = serialPort.ReadByte();
                                 chunk[actualSizeRead] = (char)s;
-
-                                //If trace data payload; put it directly into the data store.
-                                if (funCode == 1 && funSubCode == 0)
+                                if (funCode == (int)FunctionCode.TRACE_DATA)
                                 {
                                     dataStore.Add((byte)s);
                                 }
-                                actualSizeRead += 1;
+
+                                actualSizeRead += 1;                               
                             }
                         }
                         catch (TimeoutException toe)
                         {
                             state = 2;
-
-                            mMutexRemote.WaitOne();
-                             remoteQ.Enqueue(".... ".ToCharArray());
-                            mMutexRemote.ReleaseMutex();
                             break;
                         }
-
                         //we made it past state 2 - we have payload
                         state = 3;
-
-                        
-
                         break;
                     case 3:
+                        // In this State, we have finished downloading the payload.
+                        // So we can notify of the completion of different items here.
+
                         //Direct payload to it's destination.
-                        byte[] rawChunk = new byte[chunk.Count()];
+                        byte[] rawChunk = new byte[chunk.Length];
+
+                        for (int i = 0; i < chunk.Length; i++)
+                        {
+                            rawChunk[i] = (byte)chunk[i];
+                        }
 
                         switch ((FunctionCode)funCode)
                         {
-                            case FunctionCode.TEXT:
-                                mMutexRemote.WaitOne();
-                                remoteQ.Enqueue(chunk);
-                            mMutexRemote.ReleaseMutex();
+                            case FunctionCode.TRACE_DATA:
+                                EnqueueLocalChunk("Finished Downloading Data\r\n".ToCharArray());                                
                                 break;
-                            case FunctionCode.DATA:
-                                switch ((FunctionSubCode)funSubCode)
+                            case FunctionCode.TRIGGER_SAMPLE:
                                 {
-                                    case FunctionSubCode.TRACEDATA:
-                                        {
-                                            mMutexLocal.WaitOne();
-                                            localQ.Enqueue("Finished Downloading\r\n".ToCharArray());
-                                            mMutexLocal.ReleaseMutex();
-                                            break;
-                                        }
-                                    default:
-                                        break;
-                                }
-                                break;
-                            case FunctionCode.ERROR:
-                                mMutexRemote.WaitOne();
-                                remoteQ.Enqueue(chunk);
-                            mMutexRemote.ReleaseMutex();
-                                break;
-                            case FunctionCode.DEBUG:
-                               mMutexRemote.WaitOne();
-                               remoteQ.Enqueue(chunk);
-                            mMutexRemote.ReleaseMutex();
-                                break;
-                            case FunctionCode.CMDACK:
 
+                                    string msg = String.Format("Trigger Sample: {0} sample number",
+                                         (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
+
+                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                                    break;
+                                }
+                            case FunctionCode.TRACE_SIZE:
+                                {
+                            
+                                    string msg = String.Format("TraceSize: {0} bytes",
+                                         (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
+
+                                    EnqueueRemoteChunk((msg+"\r\n").ToCharArray());                     
                                 break;
+                                }
+                            case FunctionCode.TRIG_CFG:
+                                {
+                                    string msg = String.Format("Trig Cfg:\r\n Desired={0:X4}\r\n Active={1:X4}\r\n DontCare={2:X4}\r\n EdgeChannel={3:X2}\r\n Bits={4:X2}", 
+                                                                (rawChunk[1] << (byte)8) + rawChunk[0],
+                                                                (rawChunk[3] << (byte)8) + rawChunk[2],
+                                                                (rawChunk[5] << (byte)8) + rawChunk[4],
+                                                                (byte)chunk[6],
+                                                                (byte)chunk[7]);
+                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                                    break;
+                                }
+                            case FunctionCode.BUFF_CFG:
+                                {
+                                    string msg = String.Format("Buff Cfg:\r\n MaxSampleCount={0:X4}\r\n MaxPreTrigSampleCount={1:X4}", 
+                                                                (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0],
+                                                                (rawChunk[7] << (byte)24) + (rawChunk[6] << (byte)16) + (rawChunk[5] << (byte)8) + rawChunk[4]);
+                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                                    break;
+                                }
+                            case FunctionCode.CACK:
+                                {
+                                    string msg = String.Format("Cack: 0x{0:X2}", (byte)chunk[0]);
+                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                                    break;
+                                }
+                            case FunctionCode.HEARTBEAT:
+                                EnqueueRemoteChunk("HeartBeat: Rx'd\r\n".ToCharArray());
+                                break;
+                            case FunctionCode.STATUS:
+                                {
+                                    string msg = String.Format("Idle:{0}  Pre:{1}  Post:{2}", (chunk[0] & 0x01) == 1 ? 1 : 0,
+                                                                                              (chunk[0] & 0x02) == 1 ? 1 : 0,
+                                                                                              (chunk[0] & 0x04) == 1 ? 1 : 0);
+                                    EnqueueRemoteChunk(("Status: " + msg + "\r\n").ToCharArray());
+                                    break;
+                                }
                         }
 
                         //we made it past state 3- we did stuff with data, going back to state 0
@@ -244,20 +270,45 @@ namespace GizyitClient
             }
         }
 
+        private void EnqueueRemoteChunk(char[] chunk)
+        {
+            mMutexRemote.WaitOne();
+            remoteQ.Enqueue(chunk);
+            mMutexRemote.ReleaseMutex();
+        }
+
+        private void EnqueueLocalChunk(char[] chunk)
+        {
+            mMutexLocal.WaitOne();
+            localQ.Enqueue(chunk);
+            mMutexLocal.ReleaseMutex();
+        }
+        private String HexToText(char[] hex)
+        {
+            String text = string.Empty;
+
+            foreach (char ch in hex)
+            {
+                text = NibbleToHexString((char)((byte)ch >> (byte)4));
+                text += NibbleToHexString(ch) + " ";
+            }
+            return text;
+        }
+
+
         //
         //This function runs in the context of the main UI thread.
         //This is how UI is updated by the background thread.
         //
         private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-
             bool updatePlot = false;
             mMutexRemote.WaitOne();
             while (remoteQ.Count > 0)
                 {
                     char[] buff = remoteQ.Dequeue();
-                                
-                    String addition = new String(buff);
+
+                    String addition = new String(buff);//HexToText(buff);
           
                     txtRemote.Text += addition;
                     txtRemote.SelectAll();
@@ -329,22 +380,30 @@ namespace GizyitClient
             //If we didn't do this, and just plotted the raw samples by themselves, then
             //the signals would look more like a triangle wave.
             //
-            byte rawByte;
+            byte rawByte0, rawByte1, rawByte2, rawByte3;
             byte last0 = 0, last1 = 0, last2 = 0, last3 = 0;
             byte cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0;
 
-            rawByte = (byte)dataStore[0];
-            for (int j = 1; j < dataStore.Count; j++)
+            rawByte0 = (byte)dataStore[0];
+            rawByte1 = (byte)dataStore[1];
+            rawByte2 = (byte)dataStore[2];
+            rawByte3 = (byte)dataStore[3];
+
+            for (int j = 1; j < dataStore.Count; j+=4)
             {
-                last0 = (byte)((rawByte & 0x1) >> 0);
-                last1 = (byte)((rawByte & 0x2) >> 1);
-                last2 = (byte)((rawByte & 0x4) >> 2);
-                last3 = (byte)((rawByte & 0x8) >> 3);
-                rawByte = (byte)dataStore[j];
-                cur0 = (byte)((rawByte & 0x1) >> 0);
-                cur1 = (byte)((rawByte & 0x2) >> 1);
-                cur2 = (byte)((rawByte & 0x4) >> 2);
-                cur3 = (byte)((rawByte & 0x8) >> 3);
+                last0 = (byte)((rawByte0 & 0x1) >> 0);
+                last1 = (byte)((rawByte0 & 0x2) >> 1);
+                last2 = (byte)((rawByte0 & 0x4) >> 2);
+                last3 = (byte)((rawByte0 & 0x8) >> 3);
+                //TODO: extend to 16 channels... >> 15
+
+
+
+                rawByte0 = (byte)dataStore[j];
+                cur0 = (byte)((rawByte0 & 0x1) >> 0);
+                cur1 = (byte)((rawByte0 & 0x2) >> 1);
+                cur2 = (byte)((rawByte0 & 0x4) >> 2);
+                cur3 = (byte)((rawByte0 & 0x8) >> 3);
 
                 if (cur0 != last0)
                 {
@@ -374,26 +433,7 @@ namespace GizyitClient
 
         private void btnGeneric_Click(object sender, EventArgs e)
         {
-            //We get 4 bytes in row per bit selector control.
-            //Since we are chaining two bit selector controls together,
-            //we need to manually interleave that as expected from a GUI perspective.
 
-            //Word0
-            serialPort.Write(bitSelector1.RawData, 0, 1);
-            serialPort.Write(bitSelector2.RawData, 0, 1);          
-
-            //Word1
-            serialPort.Write(bitSelector1.RawData, 1, 1);
-            serialPort.Write(bitSelector2.RawData, 1, 1);         
-
-            //Word2
-            serialPort.Write(bitSelector1.RawData, 2, 1);
-            serialPort.Write(bitSelector2.RawData, 2, 1);         
-
-            //Word3
-            serialPort.Write(bitSelector1.RawData, 3, 1);
-            serialPort.Write(bitSelector2.RawData, 3, 1);
-          
         }
 
         private void btnClear_Click(object sender, EventArgs e)
@@ -549,10 +589,129 @@ namespace GizyitClient
             }
         }
 
-       
+        private void btnSetBuffCfg_Click(object sender, EventArgs e)
+        {
+            //Send Write Buffer Config
+            UInt32 msc = UInt32.Parse(txtMaxSampleCount.Text);
+            UInt32 mpsc = UInt32.Parse(txtMaxPreTriggerSampleCount.Text);
 
-       
+            byte[] ibuf = CmdDecEnc.EncodeBuffCfg(msc, mpsc);
+            serialPort.Write(ibuf, 0, 9);
+        }
 
+
+
+        private void btnSetTrigCfg_Click(object sender, EventArgs e)
+        {            
+            //Send Write Trigger Config
+            int dp = Int32.Parse(txtDesiredPattern.Text)       & 0xffff;
+            int ach = Int32.Parse(txtActiveChannels.Text)      & 0xffff;
+            int dcch = Int32.Parse(txtDontCareChannels.Text)   & 0xffff;
+            int ech = Int32.Parse(txtEdgeChannel.Text)         & 0xff;
+            int et = chbxEdgeType.Checked == true ? 1 : 0;
+            int ete = chbxEdgeTriggerEnable.Checked == true ? 1 : 0;
+            int pte = chbxPatternTriggerEnable.Checked == true ? 1 : 0;
+            
+            byte[] ibuf = CmdDecEnc.EncodeTrigCfg(dp, ach, dcch, et, ete, pte);
+            
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnStart_Click(object sender, EventArgs e)
+        {
+            byte code = 0x01;
+            //Send Start
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnAbort_Click(object sender, EventArgs e)
+        {            
+            //Send Abort
+            byte code = 0x02;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);        
+        }
+
+        private void btnGetTrace_Click(object sender, EventArgs e)
+        {            
+            //Send Read Trace Data
+            byte code = 0x05;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnGetStatus_Click(object sender, EventArgs e)
+        {
+            //Send Read Status
+            byte code = 0xEE;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnGetTriggerSample_Click(object sender, EventArgs e)
+        {
+            //Send Read Trigger Sample Number
+            byte code = 0x07;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnGetTraceSize_Click(object sender, EventArgs e)
+        {
+            //Send Read Trace Data Size
+            byte code = 0x06;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnResetHW_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnGetTrigCfg_Click(object sender, EventArgs e)
+        {
+            //Send Read Trace Data Size
+            byte code = 0x0B;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void btnGetBuffCfg_Click(object sender, EventArgs e)
+        {
+            //Send Read Trace Data Size
+            byte code = 0x0A;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+
+
+
+        private static string NibbleToHexString(char ch)
+        {
+            switch ((byte)ch & 0x0f)
+            {
+                case 0: return "0";
+                case 1: return "1";
+                case 2: return "2";
+                case 3: return "3";
+                case 4: return "4";
+                case 5: return "5";
+                case 6: return "6";
+                case 7: return "7";
+                case 8: return "8";
+                case 9: return "9";
+                case 10: return "A";
+                case 11: return "B";
+                case 12: return "C";
+                case 13: return "D";
+                case 14: return "E";
+                case 15: return "F";
+                default: return "X";
+            }
+        }
        
 
         
