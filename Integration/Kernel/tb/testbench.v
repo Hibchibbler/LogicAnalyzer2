@@ -1,5 +1,3 @@
-`timescale 1ps/100fs
-
 // -----------------------------------------------------------------
 // Version:  0.0
 // Author: Chip Wood
@@ -10,6 +8,10 @@
 // Course - ECE540
 // Final Project
 // ----------------------------------------------------------------- 
+//`define FASTMODE 1
+//`timescale 1ns/100ps
+
+`timescale 1ps/100fs
 
 `define TB_MODE 1
 `define RESET 0
@@ -19,10 +21,22 @@
 module testbench();
 
 /************************ PARAMETERS  *************************/
-parameter CLOCK_PERIOD_IN  = 10000;    // 10000 ps - 100 MHz base clock.
-parameter RESET_PERIOD     = 20000;    //  20000 ps reset delay
-parameter INIT_DELAY       = 80000000; // 80 usec delay before issuing commands
-
+parameter CLOCK_PERIOD_IN  = 10000;    // 10 ns - 100 MHz base clock.
+parameter RESET_PERIOD     = 20000;    // 20 ns reset delay
+`ifdef FASTMODE
+parameter INIT_DELAY       = 80000;    // 80 ns delay before issuing commands 
+`else
+parameter INIT_DELAY       = 80000000; // 80 us delay before issuing commands
+`endif
+/*
+parameter CLOCK_PERIOD_IN  = 10;    // 10 ns - 100 MHz base clock.
+parameter RESET_PERIOD     = 20;    // 20 ns reset delay
+`ifdef FASTMODE
+parameter INIT_DELAY       = 80;    // 80 ns delay before issuing commands 
+`else
+parameter INIT_DELAY       = 80000; // 80 us delay before issuing commands
+`endif
+*/
 // Some parameters for proper instantiation of DDR FBM
 localparam MEMORY_WIDTH    = 16;
 localparam DQ_WIDTH        = 16;                      // # of DQ (data)
@@ -44,9 +58,21 @@ localparam real TPROP_DQS          = 0.00; // Delay for DQS signal during Write 
 localparam real TPROP_DQS_RD       = 0.00; // Delay for DQS signal during Read Operation
 localparam real TPROP_PCB_CTRL     = 0.00; // Delay for Address and Ctrl signals
 parameter  ECC                     = "OFF";
-localparam ECC_TEST 		   	   = "OFF" ;
+localparam ECC_TEST 		   	   = "OFF";
 localparam ERR_INSERT              = (ECC_TEST == "ON") ? "OFF" : ECC ;
+
+// uart helpers
+localparam h64x0 = {64{1'b0}};  // 64 0s
+localparam h56x0 = {56{1'b0}};  // 56 0s
+localparam h16x0 = {16{1'b0}};  // 16 0s
+localparam  h8x0 =  {8{1'b0}};  //  8 0s
+localparam h64x1 = {64{1'b1}};  // 64 1s
+localparam h56x1 = {56{1'b1}};  // 56 1s
+localparam h16x1 = {16{1'b1}};  // 16 1s
+localparam  h8x1 =  {8{1'b1}};  //  8 1s
 /************************ END PARAMETERS **********************/
+
+reg  [7:0] indicator; // signal we can drive for finding stuff in the sim easily
 
 reg  clk;                               // onboard oscillator
 reg         btnW, btnE, btnN, btnS, btnC,   // buttons of nexys4fpga
@@ -120,6 +146,7 @@ initial begin
 end
 
 initial begin
+    indicator = h8x0;
     {btnW, btnE, btnN, btnS, btnC} = 5'h00;
     sw = 16'h0000;
     data_tx = 8'h00;
@@ -201,27 +228,48 @@ always @(negedge urx_buffer_read) $display("%5d UART data out: %h", $time, data_
 
 initial begin
     #INIT_DELAY
-//    #10 cmd_abort;
-    cmd_write_trig_cfg({{56{1'b0}},8'h55});
-    #(CLOCK_PERIOD_IN*2) cmd_read_trig_cfg;
-    // takes a total of ~22uS to get the full "HELLO World" back
-    #22000;
+    
+    indicator = 8'h01;
+    // edge trigger enable, positive edge, all channels x, 7-0 active, no pattern
+    // channels 7-0 active
+    // no pattern
+    cmd_write_trig_cfg({8'h06,8'h01,h16x1,{h8x0,h8x1},h16x0});
+    indicator = indicator + 1;
+    // wait for a response - should get an ack
+    waitForData();
+    indicator = indicator + 1;
+    // ask for the trigger config back
+    cmd_read_trig_cfg;
+    indicator = indicator + 1;
+    waitForData();
+    indicator = indicator + 1;
+    
+    // uhhhh no real idea how long it takes for that to come out
+    // indicator that data might be back by now
+    #22000 indicator = h8x1;
 end
 
 task cmd_start;
 begin
-    write_uart({{64{1'b0}}, 8'h01});
+    write_uart({h64x0, 8'h01});
 end
 endtask
 
 task cmd_abort;
 begin
-    write_uart({{64{1'b0}}, 8'h02});
+    write_uart({h64x0, 8'h02});
 end
 endtask
 
 task cmd_write_trig_cfg;
 input [63:0] trig_cfg;
+// desiredPattern       <= {regIn1, regIn0};
+// activeChannels       <= {regIn3, regIn2};
+// dontCareChannels     <= {regIn5, regIn4};
+// edgeChannel          <= regIn6;
+// patternTriggerEnable <= regIn7[0];
+// edgeTriggerEnable    <= regIn7[1];
+// edgeType             <= regIn7[2];
 begin
     write_uart({trig_cfg, 8'h03});
 end
@@ -229,6 +277,8 @@ endtask
 
 task cmd_write_buff_cfg;
 input [63:0] buff_cfg;
+// maxSampleCount           <= {regIn3, regIn2, regIn1, regIn0};
+// preTriggerSampleCountMax <= {regIn7, regIn6, regIn5, regIn4};
 begin
     write_uart({buff_cfg, 8'h04});
 end
@@ -236,62 +286,72 @@ endtask
 
 task cmd_read_trace_data;
 begin
-    write_uart({{64{1'b0}}, 8'h05});
+    write_uart({h64x0, 8'h05});
 end
 endtask
 
 task cmd_read_trace_size;
 begin
-    write_uart({{64{1'b0}}, 8'h06});
+    write_uart({h64x0, 8'h06});
 end
 endtask
 
 task cmd_read_trig_sample;
 begin
-    write_uart({{64{1'b0}}, 8'h07});
+    write_uart({h64x0, 8'h07});
 end
 endtask
 
 task cmd_reset_logcap;
 begin
-    write_uart({{64{1'b0}}, 8'h09});
+    write_uart({h64x0, 8'h09});
 end
 endtask
 
 task cmd_read_buff_cfg;
 begin
-    write_uart({{64{1'b0}}, 8'h0A});
+    write_uart({h64x0, 8'h0A});
 end
 endtask
 
 task cmd_read_trig_cfg;
 begin
-    write_uart({{64{1'b0}}, 8'h0B});
+    write_uart({h64x0, 8'h0B});
 end
 endtask
-
-
 
 task write_uart;
 input [71:0] data;
 integer count;
-begin
-    // make sure buffer isn't full
-    //while (utx_buffer_full) 
+begin 
     count = 0;
     while (count < 9) begin
-        if (utx_buffer_full) begin // wait a cycle
-            @(posedge clk);
-        end 
-        else begin
-            @(posedge clk);
-                data_tx = data[count*8-+7-:8];
-                utx_buffer_write = 1'b1;
-            @(posedge clk);
-                utx_buffer_write = 1'b0;
-                count = count + 1;
-        end
+        if (utx_buffer_full) @(negedge utx_buffer_full); // ensure buffer isn't full
+        @(posedge clk);
+            case (count)    // this is how you avoid fancy part selects. curse you, verilog
+                0: data_tx = data[7:0];
+                1: data_tx = data[15:8];
+                2: data_tx = data[23:16];
+                3: data_tx = data[31:24];
+                4: data_tx = data[39:32];
+                5: data_tx = data[47:40];
+                6: data_tx = data[55:48];
+                7: data_tx = data[63:56];
+                8: data_tx = data[71:64];
+                default: ; // bad!
+            endcase
+            utx_buffer_write = 1'b1;
+        @(posedge clk);
+            utx_buffer_write = 1'b0;
+            count = count + 1;
+        @(posedge clk); // utx_buffer_full gets driven high NOW, if we don't wait, the next loop won't see it
     end
+end
+endtask
+
+task waitForData;
+begin
+    while (~urx_buffer_data_present) @(posedge clk);
 end
 endtask
 
