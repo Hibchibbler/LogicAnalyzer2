@@ -31,12 +31,12 @@ namespace GizyitClient
             byte[] ibuf = new byte[9];
             ibuf[0] = 3;
             //64bit Payload
-            ibuf[1] = (byte)((dp & 0xFF00) >> 8);
-            ibuf[2] = (byte)((dp & 0x00FF) >> 0);
-            ibuf[3] = (byte)((ach & 0xFF00) >> 8);
-            ibuf[4] = (byte)((ach & 0x00FF) >> 0);
-            ibuf[5] = (byte)((dcch & 0xFF00) >> 8);
-            ibuf[6] = (byte)((dcch & 0x00FF) >> 0);
+            ibuf[2] = (byte)((dp & 0xFF00) >> 8);
+            ibuf[1] = (byte)((dp & 0x00FF) >> 0);
+            ibuf[4] = (byte)((ach & 0xFF00) >> 8);
+            ibuf[3] = (byte)((ach & 0x00FF) >> 0);
+            ibuf[6] = (byte)((dcch & 0xFF00) >> 8);
+            ibuf[5] = (byte)((dcch & 0x00FF) >> 0);
             ibuf[7] = (byte)(ech);
             ibuf[8] = (byte)(((et & 0x1) << 2) + ((ete  & 0x1)<< 1) + ((pte & 0x1) << 0));
             return ibuf;

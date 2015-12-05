@@ -65,11 +65,13 @@ namespace GizyitClient
                 worker.RunWorkerAsync();
 
                 groupBox2.Enabled = true;
+                //timerStatus.Enabled = true;
                 btnConnect.Text = "Disconnect";
 
             }
             else
             {
+                //timerStatus.Enabled = false;
                 groupBox2.Enabled = false;
                 worker.CancelAsync();
                 System.Threading.Thread.Sleep(1000);
@@ -89,6 +91,10 @@ namespace GizyitClient
 
         private enum FunctionCode
         {
+            START=0x1,
+            ABORT=0x2,
+            WRITE_TRIG_CFG = 0x3,
+            WRITE_BUFF_CFG=0x4,            
             TRACE_DATA=0x5,
             TRACE_SIZE=0x6,
             TRIGGER_SAMPLE=0x7,
@@ -220,66 +226,7 @@ namespace GizyitClient
                             rawChunk[i] = (byte)chunk[i];
                         }
 
-                        switch ((FunctionCode)funCode)
-                        {
-                            case FunctionCode.TRACE_DATA:
-                                EnqueueLocalChunk("Finished Downloading Data\r\n".ToCharArray());                                
-                                break;
-                            case FunctionCode.TRIGGER_SAMPLE:
-                                {
-
-                                    string msg = String.Format("Trigger Sample: {0} sample number",
-                                         (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
-
-                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
-                                    break;
-                                }
-                            case FunctionCode.TRACE_SIZE:
-                                {
-                            
-                                    string msg = String.Format("TraceSize: {0} bytes",
-                                         (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
-
-                                    EnqueueRemoteChunk((msg+"\r\n").ToCharArray());                     
-                                break;
-                                }
-                            case FunctionCode.TRIG_CFG:
-                                {
-                                    string msg = String.Format("Trig Cfg:\r\n Desired=0x{0:X4}\r\n Active=0x{1:X4}\r\n DontCare=0x{2:X4}\r\n EdgeChannel=0x{3:X2}\r\n Bits=0x{4:X2}", 
-                                                                (rawChunk[1] << (byte)8) + rawChunk[0],
-                                                                (rawChunk[3] << (byte)8) + rawChunk[2],
-                                                                (rawChunk[5] << (byte)8) + rawChunk[4],
-                                                                (byte)chunk[6],
-                                                                (byte)chunk[7]);
-                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
-                                    break;
-                                }
-                            case FunctionCode.BUFF_CFG:
-                                {
-                                    string msg = String.Format("Buff Cfg:\r\n MaxSampleCount=0x{0:X4}\r\n MaxPreTrigSampleCount=0x{1:X4}", 
-                                                                (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0],
-                                                                (rawChunk[7] << (byte)24) + (rawChunk[6] << (byte)16) + (rawChunk[5] << (byte)8) + rawChunk[4]);
-                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
-                                    break;
-                                }
-                            case FunctionCode.CACK:
-                                {
-                                    string msg = String.Format("Cack: 0x{0:X2}", (byte)chunk[0]);
-                                    EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
-                                    break;
-                                }
-                            case FunctionCode.HEARTBEAT:
-                                EnqueueRemoteChunk("HeartBeat: Rx'd\r\n".ToCharArray());
-                                break;
-                            case FunctionCode.STATUS:
-                                {
-                                    string msg = String.Format("Idle:{0}  Pre:{1}  Post:{2}", (chunk[0] & 0x01) == 1 ? 1 : 0,
-                                                                                              (chunk[0] & 0x02) == 1 ? 1 : 0,
-                                                                                              (chunk[0] & 0x04) == 1 ? 1 : 0);
-                                    EnqueueRemoteChunk(("Status: " + msg + "\r\n").ToCharArray());
-                                    break;
-                                }
-                        }
+                        FinishProcessing(funCode, rawChunk);
 
                         //we made it past state 3- we did stuff with data, going back to state 0
                         state = 0;
@@ -293,6 +240,108 @@ namespace GizyitClient
             }
         }
 
+        private void FinishProcessing(int funCode, byte[] rawChunk)
+        {
+            switch ((FunctionCode)funCode)
+            {
+                case FunctionCode.TRACE_DATA:
+                    EnqueueRemoteChunk("Finished Downloading Data\r\n".ToCharArray());
+                    break;
+                case FunctionCode.TRIGGER_SAMPLE:
+                    {
+
+                        string msg = String.Format("Trigger Sample: {0} sample number",
+                             (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
+
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        break;
+                    }
+                case FunctionCode.TRACE_SIZE:
+                    {
+
+                        string msg = String.Format("TraceSize: {0} bytes",
+                             (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0]);
+
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        break;
+                    }
+                case FunctionCode.TRIG_CFG:
+                    {
+                        string msg = String.Format("Trig Cfg:\r\n Desired=0x{0:X4}\r\n Active=0x{1:X4}\r\n DontCare=0x{2:X4}\r\n EdgeChannel=0x{3:X2}\r\n Bits=0x{4:X2}",
+                                                    (rawChunk[1] << (byte)8) + rawChunk[0],
+                                                    (rawChunk[3] << (byte)8) + rawChunk[2],
+                                                    (rawChunk[5] << (byte)8) + rawChunk[4],
+                                                    (byte)rawChunk[6],
+                                                    (byte)rawChunk[7]);
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        break;
+                    }
+                case FunctionCode.BUFF_CFG:
+                    {
+                        string msg = String.Format("Buff Cfg:\r\n MaxSampleCount=0x{0:X4}\r\n MaxPreTrigSampleCount=0x{1:X4}",
+                                                    (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0],
+                                                    (rawChunk[7] << (byte)24) + (rawChunk[6] << (byte)16) + (rawChunk[5] << (byte)8) + rawChunk[4]);
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        break;
+                    }
+                case FunctionCode.CACK:
+                    {
+                        string cackOrigin = String.Empty;                       
+                        switch ((FunctionCode)rawChunk[0])
+                        {
+                            case FunctionCode.TRACE_DATA:
+                                cackOrigin = "Read Trace Data";
+                                break;
+                            case FunctionCode.TRACE_SIZE:
+                                cackOrigin = "Read Trace Size";
+                                break;
+                            case FunctionCode.TRIGGER_SAMPLE:
+                                cackOrigin = "Read Trigger Sample";
+                                break;
+                            case FunctionCode.BUFF_CFG:
+                                cackOrigin = "Read Buff Cfg";
+                                break;
+                            case FunctionCode.TRIG_CFG:
+                                cackOrigin = "Read Trig Cfg";
+                                break;
+                            case FunctionCode.STATUS:
+                                cackOrigin = "Read Status";
+                                break;
+                            case FunctionCode.START:
+                                cackOrigin = "Start";
+                                break;
+                            case FunctionCode.ABORT:
+                                cackOrigin = "Abort";
+                                break;
+                            case FunctionCode.WRITE_BUFF_CFG:
+                                cackOrigin = "Set Buff Cfg";
+                                break;
+                            case FunctionCode.WRITE_TRIG_CFG:
+                                cackOrigin = "Set Trig Cfg";
+                                break;
+                            default:
+                                break;
+                        }
+                        string msg = String.Format("{0} Ack'd", cackOrigin);
+
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        
+                        break;
+                    }
+                case FunctionCode.HEARTBEAT:
+                    EnqueueRemoteChunk("HeartBeat: Rx'd\r\n".ToCharArray());
+                    break;
+                case FunctionCode.STATUS:
+                    {
+                        string msg = String.Format("Idle:{0}  Pre:{1}  Post:{2}", (rawChunk[0] & 0x01) == 1 ? "Yes" : "No",
+                                                                                  (rawChunk[0] & 0x02) == 1 ? "Yes" : "No",
+                                                                                  (rawChunk[0] & 0x04) == 1 ? "Yes" : "No");
+                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        break;
+                    }
+            }
+        }
+
         private void EnqueueRemoteChunk(char[] chunk)
         {
             mMutexRemote.WaitOne();
@@ -300,20 +349,14 @@ namespace GizyitClient
             mMutexRemote.ReleaseMutex();
         }
 
-        private void EnqueueLocalChunk(char[] chunk)
-        {
-            mMutexLocal.WaitOne();
-            localQ.Enqueue(chunk);
-            mMutexLocal.ReleaseMutex();
-        }
-        private String HexToText(char[] hex)
+        private String HexToText(byte[] hex)
         {
             String text = string.Empty;
 
-            foreach (char ch in hex)
+            foreach (byte b in hex)
             {
-                text = NibbleToHexString((char)((byte)ch >> (byte)4));
-                text += NibbleToHexString(ch) + " ";
+                text += NibbleToHexString((char)(b >> (byte)4));
+                text += NibbleToHexString((char)b) + " ";
             }
             return text;
         }
@@ -326,33 +369,44 @@ namespace GizyitClient
         private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             bool updatePlot = false;
+            
             mMutexRemote.WaitOne();
             while (remoteQ.Count > 0)
                 {
+                    bool supressText = false;        
                     char[] buff = remoteQ.Dequeue();
 
                     String addition = new String(buff);//HexToText(buff);
-          
-                    txtRemote.Text += addition;
-                    txtRemote.SelectAll();
-                    txtRemote.ScrollToCaret();               
+                    if (addition.Contains("Finished Downloading"))
+                    {
+                        updatePlot = true;
+                    }
+                    //if (addition.Contains("Idle:Yes"))
+                    //{
+                    //    pbIdleGood.Visible = true;
+                    //    pbIdleBad.Visible = false;
+                    //    supressText = true;
+                    //}
+                    //else if (addition.Contains("Idle:No"))
+                    //{
+                    //    pbIdleGood.Visible = false;
+                    //    pbIdleBad.Visible = true;
+                    //    supressText = true;
+                    //}
+
+                    if (addition.Contains("Read Status"))
+                    {
+                        supressText = true;
+                    }
+
+                    if (!supressText)
+                    {
+                        txtRemote.Text += addition;
+                        txtRemote.SelectAll();
+                        txtRemote.ScrollToCaret();
+                    }
                 }
             mMutexRemote.ReleaseMutex();
-
-            mMutexLocal.WaitOne();
-            while (localQ.Count > 0)
-            {
-                char[] buff = localQ.Dequeue();
-
-                String addition = new String(buff);
-                if (addition.Contains("Finished Downloading"))
-                    updatePlot = true;
-                txtLocal.Text += addition;
-                txtLocal.SelectAll();
-                txtLocal.ScrollToCaret();
-            }
-            mMutexLocal.ReleaseMutex();
-
 
             //Update plot if we just downloaded
             // a new trace 
@@ -377,7 +431,7 @@ namespace GizyitClient
 
                 chart.Series.Clear();
                 chart.Series.Add(seriesName);
-                chart.Series[seriesName].ChartType = SeriesChartType.FastLine; 
+                chart.Series[seriesName].ChartType = SeriesChartType.Line; 
                 chart.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
                 chart.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
                 chart.ChartAreas["ChartArea1"].AxisY.Minimum = 0;
@@ -425,7 +479,7 @@ namespace GizyitClient
 
                 rawByte0 = (byte)dataStore[j + 0];
                 rawByte1 = (byte)dataStore[j + 1];
-                rawByte2 = (byte)dataStore[j + 2];//ovrflw. We don't do anything with it currently. The sample data is enough.
+                rawByte2 = (byte)dataStore[j + 2];//ovrflw. We don't do anything with it currently. 
                 rawByte3 = (byte)dataStore[j + 3];//ovrflw
 
                 cur[0] = (byte)((rawByte0 & 0x1)    >> 0);
@@ -474,10 +528,6 @@ namespace GizyitClient
             }
         }
 
-        private void btnClearLocal_Click(object sender, EventArgs e)
-        {
-            txtLocal.Clear();
-        }
         private void frmMain_FormClosed(object sender, FormClosedEventArgs e)
         {
             worker.CancelAsync();
@@ -658,20 +708,18 @@ namespace GizyitClient
             serialPort.Write(ibuf, 0, 9);
         }
 
-        private void btnStart_Click(object sender, EventArgs e)
+        private void btnBegin_Click(object sender, EventArgs e)
         {
-            byte code = 0x01;
-            //Send Start
-            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
-            serialPort.Write(ibuf, 0, 9);
+            btnSetBuffCfg_Click(null, null);
+            btnSetTrigCfg_Click(null, null);
+            btnSetStart_Click(null, null);
         }
 
-        private void btnAbort_Click(object sender, EventArgs e)
-        {            
-            //Send Abort
-            byte code = 0x02;
-            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
-            serialPort.Write(ibuf, 0, 9);        
+        private void btnEnd_Click(object sender, EventArgs e)
+        {
+            btnSetAbort_Click(null, null);
+            //TODO: Wait for Idle Status
+            btnGetTrace_Click(null, null);
         }
 
         private void btnGetTrace_Click(object sender, EventArgs e)
@@ -730,11 +778,26 @@ namespace GizyitClient
 
         private void btnSetCursor_Click(object sender, EventArgs e)
         {
-            double v = double.Parse(txtCursorVal.Text);
+            byte byte0, byte1;
+            int ch=0;
+            int sampleNum = int.Parse(txtCursorVal.Text);
             foreach (Chart chart in charts)
             {
-                chart.ChartAreas["ChartArea1"].CursorX.Position = v;
+                chart.ChartAreas["ChartArea1"].CursorX.Position = Convert.ToDouble(sampleNum);
+                ch++;
             }
+
+            //CConvert sample number to bytes.
+            // This data has 4 byte samples. first two bytes are signals
+            //  and the last two bytes are the overflow counter value (cycles since last sample) (not used so far)
+            byte[] rawByte = new byte[2];            
+            rawByte[0] = (byte)dataStore[((sampleNum ) * 4)+1];
+            rawByte[1] = (byte)dataStore[((sampleNum ) * 4)+0];
+            txtSelectedSample.Text = HexToText(rawByte);
+
+            rawByte[0] = (byte)dataStore[((sampleNum) * 4) + 3];
+            rawByte[1] = (byte)dataStore[((sampleNum) * 4) + 2];
+            lblOverflow.Text = HexToText(rawByte);
         }
 
         private static string NibbleToHexString(char ch)
@@ -767,9 +830,26 @@ namespace GizyitClient
         {
 
         }
-       
 
-        
+        private void btnSetStart_Click(object sender, EventArgs e)
+        {
+            byte code = 0x01;
+            //Send Start
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
 
+        private void btnSetAbort_Click(object sender, EventArgs e)
+        {
+            //Send Abort
+            byte code = 0x02;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
+
+        private void timerStatus_Tick(object sender, EventArgs e)
+        {
+            btnGetStatus_Click(null, null);
+        }
     }
 }
