@@ -19,6 +19,8 @@ module LogicCaptureTop #(
     
     // Asynchronous sample data input
     input  [SAMPLE_WIDTH-1:0]       sampleData_async,
+                                    sampleData_asyncFake,
+    input signalSwitcher,
     
     // Communication interface to HUB
     // 8 Input Registers
@@ -76,9 +78,13 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_READ_BUFF_CFG       = 8'h0A,
             CMD_READ_TRIG_CFG       = 8'h0B;
 
-reg [SAMPLE_WIDTH-1:0] sampleData_sync0;
-reg [SAMPLE_WIDTH-1:0] sampleData_sync1;
-reg [SAMPLE_WIDTH-1:0] sampleData;
+reg [SAMPLE_WIDTH-1:0] sampleData_sync0,sampleData_sync0Fake;
+reg [SAMPLE_WIDTH-1:0] sampleData_sync1,sampleData_sync1Fake;
+reg [SAMPLE_WIDTH-1:0] sampleData,sampleDataFake;
+
+wire [SAMPLE_WIDTH-1:0] signals;
+
+assign signals = signalSwitcher ? sampleDataFake : sampleData;
 
 reg [7:0] currentCommand;
 reg readbackMode;
@@ -239,6 +245,11 @@ always @(posedge clk) begin
     sampleData_sync1 <= sampleData_sync0;
     sampleData       <= sampleData_sync1;
 end
+always @(posedge clk) begin
+    sampleData_sync0Fake <= sampleData_asyncFake;
+    sampleData_sync1Fake <= sampleData_sync0Fake;
+    sampleDataFake       <= sampleData_sync1Fake;
+end
 
 LogCap #(
     .SAMPLE_WIDTH(SAMPLE_WIDTH),
@@ -246,7 +257,8 @@ LogCap #(
 ) ilogcap (
     .clk(clk),
     .reset(logCapReset),
-    .sampleData(sampleData),
+    //.sampleData(sampleData),
+    .sampleData(signals),
     .maxSampleCount(maxSampleCount),
     .preTriggerSampleCountMax(preTriggerSampleCountMax),
     .desiredPattern(desiredPattern),
