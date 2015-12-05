@@ -180,7 +180,11 @@ always @(posedge clk) begin
         if ((complete | abort) & running) begin
             sampleNum_End       <= sample_number;
             sampleNum_Trig      <= triggerSampleNumber;
-            capturedSampleCount <= totalSamplesTaken;
+            if (totalSamplesTaken == 0) begin
+                capturedSampleCount <= maxSampleCount;
+            end else begin
+                capturedSampleCount <= totalSamplesTaken;
+            end
         end else begin
             sampleNum_End       <= sampleNum_End;
             sampleNum_Trig      <= sampleNum_Trig;
