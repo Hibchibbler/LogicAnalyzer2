@@ -88,20 +88,34 @@ namespace GizyitClient
         {
             port.Write(dat, 0, 4);            
         }
-
+        /*
+            // C&C Command Codes  (These commands are sent from frontend, to us)
+            CONSTANT CMD_CC_START,                  01
+            CONSTANT CMD_CC_ABORT,                  02
+            CONSTANT CMD_CC_WRITE_TRIG_CFG,         03
+            CONSTANT CMD_CC_WRITE_BUFF_CFG,         04
+            CONSTANT CMD_CC_READ_TRACE_DATA,        05
+            CONSTANT CMD_CC_READ_TRACE_SIZE,        06
+            CONSTANT CMD_CC_READ_TRIGGER_SAMPLE,    07
+            CONSTANT CMD_CC_RESET_LOGCAP,           09
+            CONSTANT CMD_CC_READ_BUFF_CFG,          0A
+            CONSTANT CMD_CC_READ_TRIG_CFG,          0B
+            CONSTANT CMD_CC_READ_STATUS,            EE
+        */
         private enum FunctionCode
         {
-            START=0x1,
-            ABORT=0x2,
+            START = 0x1,
+            ABORT = 0x2,
             WRITE_TRIG_CFG = 0x3,
-            WRITE_BUFF_CFG=0x4,            
-            TRACE_DATA=0x5,
-            TRACE_SIZE=0x6,
-            TRIGGER_SAMPLE=0x7,
-            BUFF_CFG=0xA,
-            TRIG_CFG=0xB,
+            WRITE_BUFF_CFG = 0x4,
+            READ_TRACE_DATA = 0x5,
+            READ_TRACE_SIZE = 0x6,
+            READ_TRIGGER_SAMPLE = 0x7,
+            RESET=0x9,
+            READ_BUFF_CFG = 0xA,
+            READ_TRIG_CFG = 0xB,
             CACK=0xDD,
-            STATUS=0xEE,
+            READ_STATUS = 0xEE,
             HEARTBEAT=0xFF
             
         }
@@ -182,7 +196,7 @@ namespace GizyitClient
                         totalToRead = payloadSize;
                         chunk = null;
                         chunk = new char[totalToRead];
-                        if (funCode == (int)FunctionCode.TRACE_DATA)
+                        if (funCode == (int)FunctionCode.READ_TRACE_DATA)
                         {
                             dataStore.Clear();
                         }
@@ -193,17 +207,30 @@ namespace GizyitClient
                     case 2:
                         try
                         {
-                            while (actualSizeRead < totalToRead)
+                            int timeoutCounter = 0;
+                            const int TO_CNT_MAX = 8192;//100 bytes
+                            while (actualSizeRead < totalToRead && timeoutCounter < TO_CNT_MAX)
                             {
                              
                                 int s = serialPort.ReadByte();
                                 chunk[actualSizeRead] = (char)s;
-                                if (funCode == (int)FunctionCode.TRACE_DATA)
+                                if (funCode == (int)FunctionCode.READ_TRACE_DATA)
                                 {
                                     dataStore.Add((byte)s);
                                 }
 
-                                actualSizeRead += 1;                               
+                                actualSizeRead += 1;
+                                timeoutCounter++;
+                            }
+
+                            if (timeoutCounter == TO_CNT_MAX)
+                            {
+                                //We captured TO_CNT_MAX bytes, let's pause
+                                // and update the UI
+                                string msg = String.Format("Still Downloading...");
+                                EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                                state = 2;
+                                break;
                             }
                         }
                         catch (TimeoutException toe)
@@ -211,6 +238,9 @@ namespace GizyitClient
                             state = 2;
                             break;
                         }
+
+                        
+
                         //we made it past state 2 - we have payload
                         state = 3;
                         break;
@@ -239,15 +269,18 @@ namespace GizyitClient
                 System.Threading.Thread.Sleep(10);
             }
         }
+        private void ContinueProcessing(int funCode, byte[] rawChunk)
+        {
 
+        }
         private void FinishProcessing(int funCode, byte[] rawChunk)
         {
             switch ((FunctionCode)funCode)
             {
-                case FunctionCode.TRACE_DATA:
+                case FunctionCode.READ_TRACE_DATA:
                     EnqueueRemoteChunk("Finished Downloading Data\r\n".ToCharArray());
                     break;
-                case FunctionCode.TRIGGER_SAMPLE:
+                case FunctionCode.READ_TRIGGER_SAMPLE:
                     {
 
                         string msg = String.Format("Trigger Sample: {0} sample number",
@@ -256,7 +289,7 @@ namespace GizyitClient
                         EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
                         break;
                     }
-                case FunctionCode.TRACE_SIZE:
+                case FunctionCode.READ_TRACE_SIZE:
                     {
 
                         string msg = String.Format("TraceSize: {0} bytes",
@@ -265,7 +298,7 @@ namespace GizyitClient
                         EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
                         break;
                     }
-                case FunctionCode.TRIG_CFG:
+                case FunctionCode.READ_TRIG_CFG:
                     {
                         string msg = String.Format("Trig Cfg:\r\n Desired=0x{0:X4}\r\n Active=0x{1:X4}\r\n DontCare=0x{2:X4}\r\n EdgeChannel=0x{3:X2}\r\n Bits=0x{4:X2}",
                                                     (rawChunk[1] << (byte)8) + rawChunk[0],
@@ -276,7 +309,7 @@ namespace GizyitClient
                         EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
                         break;
                     }
-                case FunctionCode.BUFF_CFG:
+                case FunctionCode.READ_BUFF_CFG:
                     {
                         string msg = String.Format("Buff Cfg:\r\n MaxSampleCount=0x{0:X4}\r\n MaxPreTrigSampleCount=0x{1:X4}",
                                                     (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0],
@@ -286,27 +319,10 @@ namespace GizyitClient
                     }
                 case FunctionCode.CACK:
                     {
-                        string cackOrigin = String.Empty;                       
+                        string cackOrigin = String.Empty;
+                        string msg = String.Empty;
                         switch ((FunctionCode)rawChunk[0])
                         {
-                            case FunctionCode.TRACE_DATA:
-                                cackOrigin = "Read Trace Data";
-                                break;
-                            case FunctionCode.TRACE_SIZE:
-                                cackOrigin = "Read Trace Size";
-                                break;
-                            case FunctionCode.TRIGGER_SAMPLE:
-                                cackOrigin = "Read Trigger Sample";
-                                break;
-                            case FunctionCode.BUFF_CFG:
-                                cackOrigin = "Read Buff Cfg";
-                                break;
-                            case FunctionCode.TRIG_CFG:
-                                cackOrigin = "Read Trig Cfg";
-                                break;
-                            case FunctionCode.STATUS:
-                                cackOrigin = "Read Status";
-                                break;
                             case FunctionCode.START:
                                 cackOrigin = "Start";
                                 break;
@@ -319,19 +335,24 @@ namespace GizyitClient
                             case FunctionCode.WRITE_TRIG_CFG:
                                 cackOrigin = "Set Trig Cfg";
                                 break;
+                            case FunctionCode.RESET:
+                                cackOrigin = "Reset";
+                                break;
                             default:
+                                cackOrigin = "DOGDRAGON";
                                 break;
                         }
-                        string msg = String.Format("{0} Ack'd", cackOrigin);
-
-                        EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
-                        
+                        if (cackOrigin != "DOGDRAGON")
+                        {
+                            msg = String.Format("{0} Ack'd", cackOrigin);
+                            EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
+                        }
                         break;
                     }
                 case FunctionCode.HEARTBEAT:
                     EnqueueRemoteChunk("HeartBeat: Rx'd\r\n".ToCharArray());
                     break;
-                case FunctionCode.STATUS:
+                case FunctionCode.READ_STATUS:
                     {
                         string msg = String.Format("Idle:{0}  Pre:{1}  Post:{2}", (rawChunk[0] & 0x01) == 1 ? "Yes" : "No",
                                                                                   (rawChunk[0] & 0x02) == 1 ? "Yes" : "No",
@@ -536,61 +557,7 @@ namespace GizyitClient
                 serialPort.Close();
         }
 
-        //
-        // THe following chart event handlers are a work in progress.
-        // To get the charts to behave as you'd like takes a lot of messing
-        // around.  So i've left the commentted out code for my future benefit.
-        //
-        private void chart1_AxisViewChanging(object sender, ViewEventArgs e)
-        {
-            foreach (Chart chart in charts)
-            {
-                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            }
 
-        //    chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-        //    chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-   
-        }
-
-        
-        private void chart1_AxisViewChanged(object sender, ViewEventArgs e)
-        {
-            //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            //chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-        }
-        private void chart1_SelectionRangeChanged(object sender, CursorEventArgs e)
-        {
-            
-            //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-        
-            
-        }             
-
-        private void chart1_SelectionRangeChanging(object sender, CursorEventArgs e)
-        {
-            ////chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd
-            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart; 
-            //chart4.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-        }
-
-        private void chart1_CursorPositionChanging(object sender, CursorEventArgs e)
-        {
-            foreach (Chart chart in charts)
-            {
-                chart.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            }
-
-            //chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-        }
-
-        private void chart1_CursorPositionChanged(object sender, CursorEventArgs e)
-        {
-
-        }
 
 
         //
@@ -710,6 +677,7 @@ namespace GizyitClient
 
         private void btnBegin_Click(object sender, EventArgs e)
         {
+            btnSetReset_Click(null, null);
             btnSetBuffCfg_Click(null, null);
             btnSetTrigCfg_Click(null, null);
             btnSetStart_Click(null, null);
@@ -754,10 +722,6 @@ namespace GizyitClient
             serialPort.Write(ibuf, 0, 9);
         }
 
-        private void btnResetHW_Click(object sender, EventArgs e)
-        {
-
-        }
 
         private void btnGetTrigCfg_Click(object sender, EventArgs e)
         {
@@ -778,7 +742,6 @@ namespace GizyitClient
 
         private void btnSetCursor_Click(object sender, EventArgs e)
         {
-            byte byte0, byte1;
             int ch=0;
             int sampleNum = int.Parse(txtCursorVal.Text);
             foreach (Chart chart in charts)
@@ -846,10 +809,92 @@ namespace GizyitClient
             byte[] ibuf = CmdDecEnc.EncodeSimple(code);
             serialPort.Write(ibuf, 0, 9);
         }
+        private void btnNextSample_Click(object sender, EventArgs e)
+        {
+            int selVal = int.Parse(txtCursorVal.Text);
+            selVal++;
+            txtCursorVal.Text = selVal.ToString();
+            btnSetCursor_Click(null, null);
+        }
 
+        private void btnPrevSample_Click(object sender, EventArgs e)
+        {
+            int selVal = int.Parse(txtCursorVal.Text);
+            if (selVal > 0)
+                selVal--;
+            txtCursorVal.Text = selVal.ToString();
+            btnSetCursor_Click(null, null);
+        }
+
+        private void btnSetReset_Click(object sender, EventArgs e)
+        {
+            //Send Reset
+            byte code = 0x09;
+            byte[] ibuf = CmdDecEnc.EncodeSimple(code);
+            serialPort.Write(ibuf, 0, 9);
+        }
         private void timerStatus_Tick(object sender, EventArgs e)
         {
             btnGetStatus_Click(null, null);
         }
+
+
+        //
+        // THe following chart event handlers are a work in progress.
+        // To get the charts to behave as you'd like takes a lot of messing
+        // around.  So i've left the commentted out code for my future benefit.
+        //
+        private void chart1_AxisViewChanging(object sender, ViewEventArgs e)
+        {
+            foreach (Chart chart in charts)
+            {
+                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+            }
+
+            //    chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+            //    chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+
+        }
+
+
+        private void chart1_AxisViewChanged(object sender, ViewEventArgs e)
+        {
+            //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+            //chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+        }
+        private void chart1_SelectionRangeChanged(object sender, CursorEventArgs e)
+        {
+
+            //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+
+
+        }
+
+        private void chart1_SelectionRangeChanging(object sender, CursorEventArgs e)
+        {
+            ////chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd
+            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart; 
+            //chart4.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+        }
+
+        private void chart1_CursorPositionChanging(object sender, CursorEventArgs e)
+        {
+            foreach (Chart chart in charts)
+            {
+                chart.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+            }
+
+            //chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
+            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
+        }
+
+        private void chart1_CursorPositionChanged(object sender, CursorEventArgs e)
+        {
+
+        }
+
+
     }
 }

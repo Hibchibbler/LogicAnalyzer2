@@ -74,10 +74,10 @@ CONSTANT    SP_TEMP1,                   21      ; Temp storage.  Used by ISR
 CONSTANT    SP_TEMP2,                   22      ;
 CONSTANT    SP_BUFFER_INDEX,            23
 
-CONSTANT    SP_READ_TRACE_SIZE0,             24
-CONSTANT    SP_READ_TRACE_SIZE1,             25
-CONSTANT    SP_READ_TRACE_SIZE2,             26
-CONSTANT    SP_READ_TRACE_SIZE3,             27
+CONSTANT    SP_READ_TRACE_SIZE0,        24
+CONSTANT    SP_READ_TRACE_SIZE1,        25
+CONSTANT    SP_READ_TRACE_SIZE2,        26
+CONSTANT    SP_READ_TRACE_SIZE3,        27
 
 CONSTANT    SP_TRANSFERRED0,            28
 CONSTANT    SP_TRANSFERRED1,            29
@@ -111,9 +111,9 @@ CONSTANT PA_READ_LOGCAP_REGISTER4,      04
 CONSTANT PA_READ_LOGCAP_REGISTER5,      05
 CONSTANT PA_READ_LOGCAP_REGISTER6,      06
 CONSTANT PA_READ_LOGCAP_REGISTER7,      07
-CONSTANT PA_READ_LOGCAP_READ_STATUS,         08
+CONSTANT PA_READ_LOGCAP_READ_STATUS,    08
 CONSTANT PA_READ_UART_DATA,             09
-CONSTANT PA_READ_UART_READ_STATUS,           0A
+CONSTANT PA_READ_UART_READ_STATUS,      0A
 CONSTANT PA_READ_SWITCHES_7_0,          0B
 CONSTANT PA_READ_SWITCHES_15_8,         0C
 CONSTANT PA_READ_BUTTONS,               0D
@@ -139,6 +139,7 @@ CONSTANT CMD_LOGCAP_ACK,                08
 CONSTANT CMD_LOGCAP_RESET,              09
 CONSTANT CMD_LOGCAP_READ_BUFF_CFG,      0A
 CONSTANT CMD_LOGCAP_READ_TRIG_CFG,      0B
+CONSTANT CMD_LOGCAP_TRACE_DATA_COMPLETE,0C
 
 
 ; C&C Command Codes  (These commands are sent from frontend, to us)
@@ -202,7 +203,7 @@ CheckCmd:                               ; If we have 9 bytes, then we can proces
     COMPARE s0, COMMAND_SIZE
     JUMP    Z,  ProcessCommand          ;We have a full command. Go figure out what it is, and then process it.
     JUMP    Upkeep                      ;We do not have a full command, nothing to process. do upkeep.
-ProcessCommand:
+ProcessCommand:                         ;Dispatch!!
     LOAD    s0,  00
     FETCH   s1, (s0)                    ; pull out the command code
 ProcessIfStartCmd:
@@ -223,8 +224,8 @@ ProcessIfReadStatusCmd:
     COMPARE s1, CMD_CC_READ_STATUS
     JUMP    NZ, ProcessIfWriteTrigCfgCmd    
     CALL    ProcessReadStatus               ; Process Status request
-    LOAD    s6, CMD_CC_READ_STATUS           ; Ack request
-    CALL    SendCack
+    ;LOAD    s6, CMD_CC_READ_STATUS           ; Ack request
+    ;CALL    SendCack
     JUMP    DoneProcessing
 ProcessIfWriteTrigCfgCmd:
     COMPARE s1, CMD_CC_WRITE_TRIG_CFG
@@ -244,38 +245,44 @@ ProcessIfReadTraceDataCmd:
     COMPARE s1, CMD_CC_READ_TRACE_DATA
     JUMP    NZ, ProcessIfReadTraceSizeCmd
     CALL    ProcessReadTraceData                 ; Process Read Trace Data
-    LOAD    s6, CMD_CC_READ_TRACE_DATA             ; Ack request
-    CALL    SendCack
+    ;LOAD    s6, CMD_CC_READ_TRACE_DATA             ; Ack request
+    ;CALL    SendCack
     JUMP    DoneProcessing
 ProcessIfReadTraceSizeCmd:
     COMPARE s1, CMD_CC_READ_TRACE_SIZE
     JUMP    NZ, ProcessIfReadTriggerSampleCmd
     CALL    ProcessReadTraceSize            ; Process the Trace Size request
-    LOAD    s6, CMD_CC_READ_TRACE_SIZE       ; Ack request
-    CALL    SendCack
+    ;LOAD    s6, CMD_CC_READ_TRACE_SIZE       ; Ack request
+    ;CALL    SendCack
     JUMP    DoneProcessing
 ProcessIfReadTriggerSampleCmd:
     COMPARE s1, CMD_CC_READ_TRIGGER_SAMPLE
     JUMP    NZ, ProcessIfReadTrigCfgCmd
     CALL    ProcessReadTriggerSample        ; Process Trigger Sample request    
-    LOAD    s6, CMD_CC_READ_TRIGGER_SAMPLE   ; Ack request
-    CALL    SendCack    
+    ;LOAD    s6, CMD_CC_READ_TRIGGER_SAMPLE   ; Ack request
+    ;CALL    SendCack    
     JUMP    DoneProcessing    
 ProcessIfReadTrigCfgCmd:
     COMPARE s1, CMD_CC_READ_TRIG_CFG
     JUMP    NZ, ProcessIfReadBuffCfgCmd
     CALL    ProcessReadTrigCfg
-    LOAD    s6, CMD_CC_READ_TRIG_CFG   ; Ack request
-    CALL    SendCack    
+    ;LOAD    s6, CMD_CC_READ_TRIG_CFG   ; Ack request
+    ;CALL    SendCack    
     JUMP    DoneProcessing
 ProcessIfReadBuffCfgCmd:
     COMPARE s1, CMD_CC_READ_BUFF_CFG
-    JUMP    NZ, ProcessIfUnknownCmd
+    JUMP    NZ, ProcessIfResetCmd
     CALL    ProcessReadBuffCfg
-    LOAD    s6, CMD_CC_READ_BUFF_CFG   ; Ack request
+    ;LOAD    s6, CMD_CC_READ_BUFF_CFG   ; Ack request
+    ;CALL    SendCack    
+    JUMP    DoneProcessing    
+ProcessIfResetCmd:
+    COMPARE s1, CMD_CC_RESET_LOGCAP
+    JUMP    NZ, ProcessIfUnknownCmd
+    CALL    ProcessReset
+    LOAD    s6, CMD_CC_RESET_LOGCAP   ; Ack request
     CALL    SendCack    
     JUMP    DoneProcessing    
-
 ProcessIfUnknownCmd:
 DoneProcessing:  
     LOAD    s1, 00                      ; Reset Buffer Index for next cmd
@@ -306,10 +313,23 @@ FirmwareLoopEnd:
 
 
 INCLUDE "uart_interface_routines.psm"   ;Convenience macros for uarts.
-
+ProcessReset:
+    ;Received a RESET from Frontend
+    ; So, reset LogCap
+    LOAD    sF, CMD_LOGCAP_RESET
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
+    
+    LOAD sF, 39
+    CALL    WaitForAck_Timeout
+    
+    LOAD    sF, CMD_LOGCAP_ACK
+    OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND
+    CALL    WaitForNonAck
+    RETURN
+; -----------------------------------------------------------------------------    
 ProcessStart:
     ;We received a Start from the Frontend.
-    ; Notify the LogCap that is should Start
+    ; Notify the LogCap that is should Start   
     LOAD    s0, CMD_LOGCAP_START
     OUTPUT  s0, PA_WRITE_LOGCAP_COMMAND
     
@@ -568,7 +588,7 @@ ProcessReadTraceData:
                                 ; We've finished transferring all bytes from LogCap
                                 ; to Frontend.
 
-    LOAD    sF, CMD_LOGCAP_RESET
+    LOAD    sF, CMD_LOGCAP_TRACE_DATA_COMPLETE
     OUTPUT  sF, PA_WRITE_LOGCAP_COMMAND   ; Else, we are done transferring chunks. reset LogCap.
     
     LOAD sF, 46
