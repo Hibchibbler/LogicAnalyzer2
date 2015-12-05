@@ -64,8 +64,8 @@ localparam MAX_SAMPLE_INTERVAL  = {TRANSITION_COUNTER_WIDTH{1'b1}};
 localparam MAX_SAMPLE_NUMBER    = NUM_MEMORY_WORDS/NUM_WORDS_PER_PACKET-1;
 
 reg [TRANSITION_COUNTER_WIDTH-1:0] last_transition_count;
-reg [31:0] sampleNum_Begin;
-reg [31:0] sampleNum_End;
+reg signed [31:0] sampleNum_Begin;
+reg signed [31:0] sampleNum_End;
 reg [31:0] sampleNum_Trig;
 reg [31:0] triggerSampleNumber;
 reg [31:0] postTriggerSamplesMax;
@@ -85,7 +85,7 @@ assign sampleNum_End_pa   = sampleNum_End_pageAligned;
 assign sampleNum_Trig_pa  = sampleNum_Trig_pageAligned;
 
 // These are for status reporting and readback memory calculations
-reg [31:0] capturedSampleCount;
+reg signed [31:0] capturedSampleCount;
 
 wire running;
 assign running =  preTrigger | postTrigger;
@@ -191,10 +191,9 @@ end
 
 // Various calculations on sample numbers
 always @(*) begin
-    if ((sampleNum_End - capturedSampleCount + 1) >= 0) begin
-        sampleNum_Begin = sampleNum_End - capturedSampleCount + 1;
-    end else begin
-        sampleNum_Begin = sampleNum_End - capturedSampleCount + 1 + MAX_SAMPLE_NUMBER;
+    sampleNum_Begin = sampleNum_End - capturedSampleCount + 1;
+    if (sampleNum_Begin < 0) begin
+        sampleNum_Begin = sampleNum_Begin + MAX_SAMPLE_NUMBER;
     end
     totalSamplesTaken     = postTriggerSampleCount + preTriggerSampleCount;
     postTriggerSamplesMax = maxSampleCount - preTriggerSampleCountMax;
