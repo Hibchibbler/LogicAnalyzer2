@@ -23,10 +23,29 @@ namespace GizyitClient
         private System.Collections.ArrayList dataStore = new System.Collections.ArrayList();
 
         private string dataFileName = "test.dat";
+        Chart[] charts = null;
 
         public frmMain()
         {
             InitializeComponent();
+
+            charts = new Chart[16];
+            charts[0] = chart1;
+            charts[1] = chart2;
+            charts[2] = chart3;
+            charts[3] = chart4;
+            charts[4] = chart5;
+            charts[5] = chart6;
+            charts[6] = chart7;
+            charts[7] = chart8;
+            charts[8] = chart9;
+            charts[9] = chart10;
+            charts[10] = chart11;
+            charts[11] = chart12;
+            charts[12] = chart13;
+            charts[13] = chart14;
+            charts[14] = chart15;
+            charts[15] = chart16;
         }   
 
         private void frmMain_Load(object sender, EventArgs e)
@@ -44,14 +63,18 @@ namespace GizyitClient
                 serialPort.Open();
 
                 worker.RunWorkerAsync();
+
+                groupBox2.Enabled = true;
                 btnConnect.Text = "Disconnect";
 
             }
             else
             {
+                groupBox2.Enabled = false;
                 worker.CancelAsync();
                 System.Threading.Thread.Sleep(1000);
                 serialPort.Close();
+                
                 btnConnect.Text = "Connect";
 
             }
@@ -222,7 +245,7 @@ namespace GizyitClient
                                 }
                             case FunctionCode.TRIG_CFG:
                                 {
-                                    string msg = String.Format("Trig Cfg:\r\n Desired={0:X4}\r\n Active={1:X4}\r\n DontCare={2:X4}\r\n EdgeChannel={3:X2}\r\n Bits={4:X2}", 
+                                    string msg = String.Format("Trig Cfg:\r\n Desired=0x{0:X4}\r\n Active=0x{1:X4}\r\n DontCare=0x{2:X4}\r\n EdgeChannel=0x{3:X2}\r\n Bits=0x{4:X2}", 
                                                                 (rawChunk[1] << (byte)8) + rawChunk[0],
                                                                 (rawChunk[3] << (byte)8) + rawChunk[2],
                                                                 (rawChunk[5] << (byte)8) + rawChunk[4],
@@ -233,7 +256,7 @@ namespace GizyitClient
                                 }
                             case FunctionCode.BUFF_CFG:
                                 {
-                                    string msg = String.Format("Buff Cfg:\r\n MaxSampleCount={0:X4}\r\n MaxPreTrigSampleCount={1:X4}", 
+                                    string msg = String.Format("Buff Cfg:\r\n MaxSampleCount=0x{0:X4}\r\n MaxPreTrigSampleCount=0x{1:X4}", 
                                                                 (rawChunk[3] << (byte)24) + (rawChunk[2] << (byte)16) + (rawChunk[1] << (byte)8) + rawChunk[0],
                                                                 (rawChunk[7] << (byte)24) + (rawChunk[6] << (byte)16) + (rawChunk[5] << (byte)8) + rawChunk[4]);
                                     EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
@@ -345,32 +368,23 @@ namespace GizyitClient
         //
         private void PlotDataStore()
         {
-            //Initialize the 4 line charts.
-            //
-            //N.B. - the spaces in the names SO and SI are necessary to keep the charts aligned.
-            chart1.Series.Clear();
-            chart1.Series.Add("CSn");
-            chart1.Series["CSn"].ChartType = SeriesChartType.FastLine;
-            chart1.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
-            chart1.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
+            //Initialize the charts
+            int ch = 0;
+            foreach (Chart chart in charts)
+            {
+                string seriesName = String.Format("Ch{0}", ch);
+                ch++;
 
-            chart2.Series.Clear();
-            chart2.Series.Add("SO ");
-            chart2.Series["SO "].ChartType = SeriesChartType.FastLine;
-            chart2.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
-            chart2.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
+                chart.Series.Clear();
+                chart.Series.Add(seriesName);
+                chart.Series[seriesName].ChartType = SeriesChartType.FastLine; 
+                chart.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
+                chart.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
+                chart.ChartAreas["ChartArea1"].AxisY.Minimum = 0;
+                chart.ChartAreas["ChartArea1"].AxisY.Maximum = 1;
+                chart.ChartAreas["ChartArea1"].AxisY.Interval = 1;
+            }
 
-            chart3.Series.Clear();
-            chart3.Series.Add("SI ");
-            chart3.Series["SI "].ChartType = SeriesChartType.FastLine;
-            chart3.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
-            chart3.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
-
-            chart4.Series.Clear();
-            chart4.Series.Add("SCK");
-            chart4.Series["SCK"].ChartType = SeriesChartType.FastLine;
-            chart4.ChartAreas["ChartArea1"].CursorX.IsUserEnabled = true;
-            chart4.ChartAreas["ChartArea1"].CursorX.IsUserSelectionEnabled = true;
 
 
             //Create charts from raw data.
@@ -381,59 +395,67 @@ namespace GizyitClient
             //the signals would look more like a triangle wave.
             //
             byte rawByte0, rawByte1, rawByte2, rawByte3;
-            byte last0 = 0, last1 = 0, last2 = 0, last3 = 0;
-            byte cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0;
+            
+            byte[] last = new byte[16];
+            byte[] cur = new byte[16];
 
             rawByte0 = (byte)dataStore[0];
             rawByte1 = (byte)dataStore[1];
-            rawByte2 = (byte)dataStore[2];
-            rawByte3 = (byte)dataStore[3];
+            rawByte2 = (byte)dataStore[2];//ovrflw
+            rawByte3 = (byte)dataStore[3];//ovrflw
 
-            for (int j = 1; j < dataStore.Count; j+=4)
-            {
-                last0 = (byte)((rawByte0 & 0x1) >> 0);
-                last1 = (byte)((rawByte0 & 0x2) >> 1);
-                last2 = (byte)((rawByte0 & 0x4) >> 2);
-                last3 = (byte)((rawByte0 & 0x8) >> 3);
-                //TODO: extend to 16 channels... >> 15
+            for (int j = 4; j < dataStore.Count; j+=4)
+            {                
+                last[0] = (byte)((rawByte0 & 0x1)   >> 0);
+                last[1] = (byte)((rawByte0 & 0x2)   >> 1);
+                last[2] = (byte)((rawByte0 & 0x4)   >> 2);
+                last[3] = (byte)((rawByte0 & 0x8)   >> 3);
+                last[4] = (byte)((rawByte0 & 0x10)  >> 4);
+                last[5] = (byte)((rawByte0 & 0x20)  >> 5);
+                last[6] = (byte)((rawByte0 & 0x40)  >> 6);
+                last[7] = (byte)((rawByte0 & 0x80)  >> 7);
+                last[8] = (byte)((rawByte1 & 0x1)   >> 0);
+                last[9] = (byte)((rawByte1 & 0x2)   >> 1);
+                last[10] = (byte)((rawByte1 & 0x4)  >> 2);
+                last[11] = (byte)((rawByte1 & 0x8)  >> 3);
+                last[12] = (byte)((rawByte1 & 0x10) >> 4);
+                last[13] = (byte)((rawByte1 & 0x20) >> 5);
+                last[14] = (byte)((rawByte1 & 0x40) >> 6);
+                last[15] = (byte)((rawByte1 & 0x80) >> 7);
 
+                rawByte0 = (byte)dataStore[j + 0];
+                rawByte1 = (byte)dataStore[j + 1];
+                rawByte2 = (byte)dataStore[j + 2];//ovrflw. We don't do anything with it currently. The sample data is enough.
+                rawByte3 = (byte)dataStore[j + 3];//ovrflw
 
+                cur[0] = (byte)((rawByte0 & 0x1)    >> 0);
+                cur[1] = (byte)((rawByte0 & 0x2)    >> 1);
+                cur[2] = (byte)((rawByte0 & 0x4)    >> 2);
+                cur[3] = (byte)((rawByte0 & 0x8)    >> 3);
+                cur[4] = (byte)((rawByte0 & 0x10)   >> 4);
+                cur[5] = (byte)((rawByte0 & 0x20)   >> 5);
+                cur[6] = (byte)((rawByte0 & 0x40)   >> 6);
+                cur[7] = (byte)((rawByte0 & 0x80)   >> 7);
+                cur[8] = (byte)((rawByte1 & 0x1)    >> 0);
+                cur[9] = (byte)((rawByte1 & 0x2)    >> 1);
+                cur[10] = (byte)((rawByte1 & 0x4)   >> 2);
+                cur[11] = (byte)((rawByte1 & 0x8)   >> 3);
+                cur[12] = (byte)((rawByte1 & 0x10)  >> 4);
+                cur[13] = (byte)((rawByte1 & 0x20)  >> 5);
+                cur[14] = (byte)((rawByte1 & 0x40)  >> 6);
+                cur[15] = (byte)((rawByte1 & 0x80)  >> 7);
 
-                rawByte0 = (byte)dataStore[j];
-                cur0 = (byte)((rawByte0 & 0x1) >> 0);
-                cur1 = (byte)((rawByte0 & 0x2) >> 1);
-                cur2 = (byte)((rawByte0 & 0x4) >> 2);
-                cur3 = (byte)((rawByte0 & 0x8) >> 3);
-
-                if (cur0 != last0)
+                ch = 0;
+                foreach (Chart chart in charts)
                 {
-                    chart1.Series["CSn"].Points.AddXY(j, last0);
+                    if (cur[ch] != last[ch])
+                    {
+                        chart.Series[String.Format("Ch{0}", ch)].Points.AddXY(j / 4, last[ch]);
+                    }
+                    chart.Series[String.Format("Ch{0}", ch)].Points.AddXY(j / 4, cur[ch]);
+                    ch++;
                 }
-                chart1.Series["CSn"].Points.AddXY(j, cur0);
-
-                if (cur1 != last1)
-                {
-                    chart2.Series["SO "].Points.AddXY(j, last1);
-                }
-                chart2.Series["SO "].Points.AddXY(j, cur1);
-
-                if (cur2 != last2)
-                {
-                    chart3.Series["SI "].Points.AddXY(j, last2);
-                }
-                chart3.Series["SI "].Points.AddXY(j, cur2);
-
-                if (cur3 != last3)
-                {
-                    chart4.Series["SCK"].Points.AddXY(j, last3);
-                }
-                chart4.Series["SCK"].Points.AddXY(j, cur3);
             }
-        }
-
-        private void btnGeneric_Click(object sender, EventArgs e)
-        {
-
         }
 
         private void btnClear_Click(object sender, EventArgs e)
@@ -471,74 +493,46 @@ namespace GizyitClient
         //
         private void chart1_AxisViewChanging(object sender, ViewEventArgs e)
         {
-            chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            chart2.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            chart3.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+            foreach (Chart chart in charts)
+            {
+                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+                chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+            }
 
-            chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            chart2.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            chart3.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+        //    chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
+        //    chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+   
         }
 
         
         private void chart1_AxisViewChanged(object sender, ViewEventArgs e)
         {
             //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            //chart2.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            //chart3.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-            //chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
-
-            //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            //chart2.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            //chart3.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
             //chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
         }
         private void chart1_SelectionRangeChanged(object sender, CursorEventArgs e)
         {
             
             //chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            //chart2.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            //chart3.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
-            //chart4.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+        
             
         }             
 
         private void chart1_SelectionRangeChanging(object sender, CursorEventArgs e)
         {
             ////chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd
-
-
-            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-            //chart2.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart2.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-            //chart3.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart3.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart4.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-
-            //chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            //chart2.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            //chart3.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart; 
             //chart4.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-
         }
 
         private void chart1_CursorPositionChanging(object sender, CursorEventArgs e)
         {
-            chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            chart2.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            chart3.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
-            chart4.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+            foreach (Chart chart in charts)
+            {
+                chart.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+            }
 
-            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart1.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-            //chart2.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart2.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
-            //chart3.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
-            //chart3.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
+            //chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
             //chart4.ChartAreas["ChartArea1"].CursorX.SelectionStart = e.NewSelectionStart;
             //chart4.ChartAreas["ChartArea1"].CursorX.SelectionEnd = e.NewSelectionEnd;
         }
@@ -604,15 +598,62 @@ namespace GizyitClient
         private void btnSetTrigCfg_Click(object sender, EventArgs e)
         {            
             //Send Write Trigger Config
-            int dp = Int32.Parse(txtDesiredPattern.Text)       & 0xffff;
-            int ach = Int32.Parse(txtActiveChannels.Text)      & 0xffff;
-            int dcch = Int32.Parse(txtDontCareChannels.Text)   & 0xffff;
+            int dp = (dp7.Checked  ? (1 << 7)  : 0) +
+                     (dp6.Checked  ? (1 << 6)  : 0) +
+                     (dp5.Checked  ? (1 << 5)  : 0) +
+                     (dp4.Checked  ? (1 << 4)  : 0) +
+                     (dp3.Checked  ? (1 << 3)  : 0) +
+                     (dp2.Checked  ? (1 << 2)  : 0) +
+                     (dp1.Checked  ? (1 << 1)  : 0) +
+                     (dp0.Checked  ? (1 << 0)  : 0) +
+                     (dp15.Checked ? (1 << 15) : 0) +
+                     (dp14.Checked ? (1 << 14) : 0) +
+                     (dp13.Checked ? (1 << 13) : 0) +
+                     (dp12.Checked ? (1 << 12) : 0) +
+                     (dp11.Checked ? (1 << 11) : 0) +
+                     (dp10.Checked ? (1 << 10) : 0) +
+                     (dp9.Checked  ? (1 << 9)  : 0) +
+                     (dp8.Checked  ? (1 << 8)  : 0) ;
+
+            int ac = (ac7.Checked ? (1 << 7) : 0) +
+                     (ac6.Checked ? (1 << 6) : 0) +
+                     (ac5.Checked ? (1 << 5) : 0) +
+                     (ac4.Checked ? (1 << 4) : 0) +
+                     (ac3.Checked ? (1 << 3) : 0) +
+                     (ac2.Checked ? (1 << 2) : 0) +
+                     (ac1.Checked ? (1 << 1) : 0) +
+                     (ac0.Checked ? (1 << 0) : 0) +
+                     (ac15.Checked ? (1 << 15) : 0) +
+                     (ac14.Checked ? (1 << 14) : 0) +
+                     (ac13.Checked ? (1 << 13) : 0) +
+                     (ac12.Checked ? (1 << 12) : 0) +
+                     (ac11.Checked ? (1 << 11) : 0) +
+                     (ac10.Checked ? (1 << 10) : 0) +
+                     (ac9.Checked ? (1 << 9) : 0) +
+                     (ac8.Checked ? (1 << 8) : 0);
+            int dc = (dc7.Checked ? (1 << 7) : 0) +
+                     (dc6.Checked ? (1 << 6) : 0) +
+                     (dc5.Checked ? (1 << 5) : 0) +
+                     (dc4.Checked ? (1 << 4) : 0) +
+                     (dc3.Checked ? (1 << 3) : 0) +
+                     (dc2.Checked ? (1 << 2) : 0) +
+                     (dc1.Checked ? (1 << 1) : 0) +
+                     (dc0.Checked ? (1 << 0) : 0) +
+                     (dc15.Checked ? (1 << 15) : 0) +
+                     (dc14.Checked ? (1 << 14) : 0) +
+                     (dc13.Checked ? (1 << 13) : 0) +
+                     (dc12.Checked ? (1 << 12) : 0) +
+                     (dc11.Checked ? (1 << 11) : 0) +
+                     (dc10.Checked ? (1 << 10) : 0) +
+                     (dc9.Checked ? (1 << 9) : 0) +
+                     (dc8.Checked ? (1 << 8) : 0);
+
             int ech = Int32.Parse(txtEdgeChannel.Text)         & 0xff;
             int et = chbxEdgeType.Checked == true ? 1 : 0;
             int ete = chbxEdgeTriggerEnable.Checked == true ? 1 : 0;
             int pte = chbxPatternTriggerEnable.Checked == true ? 1 : 0;
             
-            byte[] ibuf = CmdDecEnc.EncodeTrigCfg(dp, ach, dcch, et, ete, pte);
+            byte[] ibuf = CmdDecEnc.EncodeTrigCfg(dp, ac, dc,ech, et, ete, pte);
             
             serialPort.Write(ibuf, 0, 9);
         }
@@ -687,7 +728,14 @@ namespace GizyitClient
         }
 
 
-
+        private void btnSetCursor_Click(object sender, EventArgs e)
+        {
+            double v = double.Parse(txtCursorVal.Text);
+            foreach (Chart chart in charts)
+            {
+                chart.ChartAreas["ChartArea1"].CursorX.Position = v;
+            }
+        }
 
         private static string NibbleToHexString(char ch)
         {
@@ -711,6 +759,13 @@ namespace GizyitClient
                 case 15: return "F";
                 default: return "X";
             }
+        }
+
+
+
+        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
         }
        
 
