@@ -127,6 +127,7 @@ sg
     .chanSignals(fakeSignals)
 );
 
+
 /*********   C&C PICOBLAZE + ROM ***********/
 command_control cc(
     .clk(soc_clk),
@@ -258,8 +259,9 @@ LogicCaptureTop ilogcap (
     .clk(soc_clk),
     .reset(soc_reset),
     // Asynchronous sample data input
-    //.sampleData_async({JA,JB}),
-    .sampleData_async(fakeSignals),
+    .sampleData_async({JB,JA}),
+    .sampleData_asyncFake(fakeSignals),
+    .signalSwitcher(sw[0]),
     // Communication interface to HUB
     // 8 Input Registers
     .regIn0(regIn0),
