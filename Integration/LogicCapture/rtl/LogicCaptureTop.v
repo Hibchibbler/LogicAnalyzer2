@@ -20,6 +20,8 @@ module LogicCaptureTop #(
     // Asynchronous sample data input
     input  [SAMPLE_WIDTH-1:0]       sampleData_async,
                                     sampleData_asyncFake,
+    // Selects between the internal (fake) sample generator
+    // test data and external input sample data
     input signalSwitcher,
     
     // Communication interface to HUB
@@ -76,15 +78,14 @@ localparam  CMD_NOP                 = 8'h00,
             CMD_ACK                 = 8'h08,
             CMD_RESET               = 8'h09,
             CMD_READ_BUFF_CFG       = 8'h0A,
-            CMD_READ_TRIG_CFG       = 8'h0B;
+            CMD_READ_TRIG_CFG       = 8'h0B,
+            CMD_TRACE_DATA_COMPLETE = 8'h0C;
 
 reg [SAMPLE_WIDTH-1:0] sampleData_sync0,sampleData_sync0Fake;
 reg [SAMPLE_WIDTH-1:0] sampleData_sync1,sampleData_sync1Fake;
 reg [SAMPLE_WIDTH-1:0] sampleData,sampleDataFake;
 
 wire [SAMPLE_WIDTH-1:0] signals;
-
-assign signals = signalSwitcher ? sampleDataFake : sampleData;
 
 reg [7:0] currentCommand;
 reg readbackMode;
@@ -94,7 +95,7 @@ wire readTrace;
 reg acknowledge;
 
 wire cmdReset;
-wire logCapReset;
+wire logCapReset, readModeReset;
 
 /* Local Configuration Registers */
 /* - Buffer Configuration - */
@@ -119,6 +120,9 @@ wire [31:0] readSampleNumber;
 wire postTrigger, preTrigger,idle,logIdle;
 wire load_l, load_u;
 
+// MUX the sample data inputs to the log cap
+assign signals = signalSwitcher ? sampleDataFake : sampleData;
+
 // de-assert idle when start command is
 // being issued;
 assign idle = logIdle & ~start & (currentCommand != CMD_START);
@@ -128,6 +132,7 @@ assign status      = {4'b0000, acknowledge, postTrigger, preTrigger, idle};
 
 // Assign special logcap reset
 assign logCapReset = reset | cmdReset;
+assign readModeReset = logCapReset | (currentCommand == CMD_TRACE_DATA_COMPLETE);
 
 // Register the applied command
 always @(posedge clk) begin
@@ -235,6 +240,7 @@ begin
         CMD_RESET:               executeReset;
         CMD_READ_BUFF_CFG:       readBufferConfig;
         CMD_READ_TRIG_CFG:       readTriggerConfig;
+        CMD_TRACE_DATA_COMPLETE: disableReadMode;
     endcase
 end
 endtask
@@ -292,7 +298,7 @@ sampleToAdx #(
 
 analyzerReadbackFSM readBackFsm(
     .clk(clk),
-    .reset(logCapReset),
+    .reset(readModeReset),
     .idle(idle),
     .read_trace_data(readTrace),  
     .readSampleNumber(readSampleNumber),
@@ -304,7 +310,7 @@ analyzerReadbackFSM readBackFsm(
 
 dataDumpFSM dumpFSM(
     .clk(clk),
-    .reset(logCapReset),
+    .reset(readModeReset),
     .dumpCmd(readTrace),
     .logcapAck(acknowledge),
     .idle(idle),
@@ -358,6 +364,13 @@ endtask
 task executeReadTraceData;
 begin
     readbackMode <= 1'b1;
+end
+endtask
+
+task disableReadMode;
+begin
+    readbackMode <= 1'b0;
+    acknowledgeCmd;
 end
 endtask
 
