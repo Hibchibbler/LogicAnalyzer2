@@ -46,6 +46,11 @@ namespace GizyitClient
             charts[13] = chart14;
             charts[14] = chart15;
             charts[15] = chart16;
+
+            pbIdleLED.Image = imageList1.Images[0];
+            pbPreTrigLED.Image = imageList1.Images[0];
+            pbPostTrigLED.Image = imageList1.Images[0];
+            pbDownloadingLED.Image = imageList1.Images[0];
         }   
 
         private void frmMain_Load(object sender, EventArgs e)
@@ -65,18 +70,23 @@ namespace GizyitClient
                 worker.RunWorkerAsync();
 
                 groupBox2.Enabled = true;
-                //timerStatus.Enabled = true;
+                timerStatus.Enabled = true;
                 btnConnect.Text = "Disconnect";
 
             }
             else
             {
-                //timerStatus.Enabled = false;
+                timerStatus.Enabled = false;
                 groupBox2.Enabled = false;
                 worker.CancelAsync();
                 System.Threading.Thread.Sleep(1000);
                 serialPort.Close();
-                
+
+                pbIdleLED.Image = imageList1.Images[0];
+                pbPreTrigLED.Image = imageList1.Images[0];
+                pbPostTrigLED.Image = imageList1.Images[0]; 
+                pbDownloadingLED.Image = imageList1.Images[0];
+
                 btnConnect.Text = "Connect";
 
             }
@@ -227,7 +237,7 @@ namespace GizyitClient
                             {
                                 //We captured TO_CNT_MAX bytes, let's pause
                                 // and update the UI
-                                string msg = String.Format("Still Downloading...");
+                                string msg = String.Format("Currently Downloading");
                                 EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
                                 state = 2;
                                 break;
@@ -355,8 +365,8 @@ namespace GizyitClient
                 case FunctionCode.READ_STATUS:
                     {
                         string msg = String.Format("Idle:{0}  Pre:{1}  Post:{2}", (rawChunk[0] & 0x01) == 1 ? "Yes" : "No",
-                                                                                  (rawChunk[0] & 0x02) == 1 ? "Yes" : "No",
-                                                                                  (rawChunk[0] & 0x04) == 1 ? "Yes" : "No");
+                                                                                  ((rawChunk[0] & 0x02) >> 1) == 1 ? "Yes" : "No",
+                                                                                  ((rawChunk[0] & 0x04) >> 2)== 1 ? "Yes" : "No");
                         EnqueueRemoteChunk((msg + "\r\n").ToCharArray());
                         break;
                     }
@@ -400,20 +410,46 @@ namespace GizyitClient
                     String addition = new String(buff);//HexToText(buff);
                     if (addition.Contains("Finished Downloading"))
                     {
+                        pbDownloadingLED.Image = imageList1.Images[0];
                         updatePlot = true;
                     }
-                    //if (addition.Contains("Idle:Yes"))
-                    //{
-                    //    pbIdleGood.Visible = true;
-                    //    pbIdleBad.Visible = false;
-                    //    supressText = true;
-                    //}
-                    //else if (addition.Contains("Idle:No"))
-                    //{
-                    //    pbIdleGood.Visible = false;
-                    //    pbIdleBad.Visible = true;
-                    //    supressText = true;
-                    //}
+
+                    if (addition.Contains("Currently Downloading"))
+                    {
+                        pbDownloadingLED.Image = imageList1.Images[1];
+                        supressText = true;
+                    }
+                    if (addition.Contains("Idle:Yes"))
+                    {
+                        pbIdleLED.Image = imageList1.Images[2];
+                        supressText = true;
+                    }
+                    else if (addition.Contains("Idle:No"))
+                    {
+                        pbIdleLED.Image = imageList1.Images[0];
+                        supressText = true;
+                    }
+                    if (addition.Contains("Pre:Yes"))
+                    {
+                        pbPreTrigLED.Image = imageList1.Images[2];
+                        supressText = true;
+                    }
+                    else if (addition.Contains("Pre:No"))
+                    {
+                        pbPreTrigLED.Image = imageList1.Images[0];
+                        supressText = true;
+                    }
+                    if (addition.Contains("Post:Yes"))
+                    {
+                        pbPostTrigLED.Image = imageList1.Images[2];
+                        supressText = true;
+                    }
+                    else if (addition.Contains("Post:No"))
+                    {
+                        pbPostTrigLED.Image = imageList1.Images[0];
+                        supressText = true;
+                    }
+
 
                     if (addition.Contains("Read Status"))
                     {
@@ -433,7 +469,8 @@ namespace GizyitClient
             // a new trace 
             if (updatePlot)
             {
-                PlotDataStore();                
+                PlotDataStore();
+                timerStatus.Enabled = true;
             }
         }
 
@@ -687,6 +724,7 @@ namespace GizyitClient
         {
             btnSetAbort_Click(null, null);
             //TODO: Wait for Idle Status
+            timerStatus.Enabled = false;
             btnGetTrace_Click(null, null);
         }
 
@@ -850,6 +888,7 @@ namespace GizyitClient
             {
                 chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
                 chart.ChartAreas["ChartArea1"].AxisX.ScaleView.Position = e.NewPosition;
+                chart.Update();
             }
 
             //    chart1.ChartAreas["ChartArea1"].AxisX.ScaleView.Size = e.NewSize;
@@ -883,6 +922,7 @@ namespace GizyitClient
             foreach (Chart chart in charts)
             {
                 chart.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
+                chart.Update();
             }
 
             //chart1.ChartAreas["ChartArea1"].CursorX.Position = e.NewPosition;
