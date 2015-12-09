@@ -16,6 +16,10 @@
  *  MEMORY_CAPCITY            - Total number of bytes in the memory
  *  MEMORY_WORD_WIDTH         - The number of bytes per data word in memory
  *
+ * NOTE: Need to revisit this module to clean up code now that interface
+ *       and functional requirements are more fully understood.
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
  */
 module SampleGen #(
     parameter SAMPLE_WIDTH             = 16,

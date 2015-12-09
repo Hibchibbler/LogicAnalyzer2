@@ -42,6 +42,7 @@
  *   triggered  - Indicates a configured trigger is active
  *   transition - Indicates a transition occurred on at least 1 active channel
  *
+ * Author: Brandon Mousseau bam7@pdx.edu
  */
 module TriggerTransDetection #(
     parameter SAMPLE_WIDTH = 16

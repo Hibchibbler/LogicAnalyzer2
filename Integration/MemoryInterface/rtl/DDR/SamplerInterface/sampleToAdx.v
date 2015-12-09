@@ -1,3 +1,8 @@
+/* sampleToAdx.v
+ * Converts a sample number to a legal address for memory
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
+ */
 module sampleToAdx #(
     parameter SAMPLE_PACKET_WIDTH = 32,
     parameter ADX_WIDTH           = 27,

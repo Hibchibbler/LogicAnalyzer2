@@ -1,4 +1,12 @@
 `timescale 1ps/100fs
+/* LogCap.v
+ * This is the core logic capture module, encapsulating the
+ * control FSM, the triggering and transition detection,
+ * and sample logging.
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
+ */
+
 module LogCap #(
     parameter SAMPLE_WIDTH        = 16,
     parameter SAMPLE_PACKET_WIDTH = 32

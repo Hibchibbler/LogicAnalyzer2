@@ -1,9 +1,12 @@
 `timescale 1ps/100fs
-/* Module provides the register interface to the command and
+/* LogicCaptureTop.v
+ * Module provides the register interface to the command and
  * control hub, encapsulate the base logic capturing peripheral,
  * and the logic required to read back data from memory and transfer
- * the data to the hub.
+ * the data to the hub. It also contains a synchronizer to handle the
+ * inputted external sample data.
  *
+ * Author: Brandon Mousseau bam7@pdx.edu
  */
 module LogicCaptureTop #(
     // Parameter describes physical sample width (ie, max).
@@ -257,6 +260,7 @@ always @(posedge clk) begin
     sampleDataFake       <= sampleData_sync1Fake;
 end
 
+// LogCap Core
 LogCap #(
     .SAMPLE_WIDTH(SAMPLE_WIDTH),
     .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH)
@@ -289,6 +293,7 @@ LogCap #(
     .traceSizeBytes(traceSizeBytes)
 );
 
+// Converts a sample number to a memory address
 sampleToAdx #(
     .SAMPLE_PACKET_WIDTH(SAMPLE_PACKET_WIDTH)
 ) adxConversion(
@@ -296,6 +301,7 @@ sampleToAdx #(
     .adx(read_sample_address)
 );
 
+// Reads data from memory while in readback mode
 analyzerReadbackFSM readBackFsm(
     .clk(clk),
     .reset(readModeReset),
@@ -308,6 +314,8 @@ analyzerReadbackFSM readBackFsm(
     .sampleNumber_End(sampleNumber_End)
 );
 
+// Handles controlling loading of output
+// registers with trace data returned from memory
 dataDumpFSM dumpFSM(
     .clk(clk),
     .reset(readModeReset),
