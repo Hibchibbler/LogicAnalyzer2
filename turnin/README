@@ -10,9 +10,17 @@ The easiest way to identify which COM port to use is to open Device Manager and 
 Click "connect" once you've found the correct COM port.
 There are several tabs for trigger and buffer configuration. 
     Buffer
-        Max Sample Count - maximum number of samples to log to memory. This is the number of PACKETS, not raw samples
+        Max Sample Count - maximum number of samples to log to memory. This is the number of PACKETS, not raw samples.
         Max PreTrigger Sample Count - max number of samples to save before triggering. Again, number of PACKETS.
     Trigger
+        Active Channels     - select each channel to be considered for triggers
+        Desired Pattern     - Select the desired pattern for the pattern trigger (only applicable if pattern trigger is enabled).
+                              A check in the box is a 1, empty is 0
+        Don't Care Channels    - If you do not care about particular channel's levels for the pattern trigger, select them here.
+        Edge Trigger Channel   - The channel number you wish to monitor for the edge trigger
+        Edge Trigger Type      - Check the box for a positive edge, uncheck for a negative edge
+        Pattern Trigger Enable - Check to enable the pattern trigger
+        Edge Trigger Enable    - Check to enable the edge trigger
         
         
 Once you've set up your configuration, hit the "Begin" button to launch the trace
