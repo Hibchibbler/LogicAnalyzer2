@@ -1,0 +1,31 @@
+README
+
+\design\ - all verilog/assembly source code lives here
+\client\ - the Windows client for connecting to the FPGA lives here
+
+To connect, turn on the FPGA and connect it to your computer via the micro USB port on the Nexys4DDR. 
+The easiest way to identify which COM port to use is to open Device Manager and look in the COM ports section.
+    The COM port seems to be different for everyone...
+
+Click "connect" once you've found the correct COM port.
+There are several tabs for trigger and buffer configuration. 
+    Buffer
+        Max Sample Count - maximum number of samples to log to memory. This is the number of PACKETS, not raw samples
+        Max PreTrigger Sample Count - max number of samples to save before triggering. Again, number of PACKETS.
+    Trigger
+        
+        
+Once you've set up your configuration, hit the "Begin" button to launch the trace
+    Depending on your configuration, things may happen so fast you don't actually see anything
+    If you see the 'Idle' status indicator lit, it has already finished sampling
+    If your trigger configuration is bad, you may see the device stuck in 'Pre Trig' for a long time. Go to the 'control' tab and hit 'abort'
+    If your buffer is large or the signal is relatively slow, you may see the device remain in 'Post Trig' for some time. 
+            There is an upper limit to the number of samples that can be saved, so if it seems like it's taking a very long time (>1 minute), 
+            abort and reduce the buffer size.
+Once the device returns to 'Idle' you can hit 'End' to download the trace. Large traces may take some time.
+
+You can zoom in on portions of the waveform by clicking and dragging to highlight a section.
+You can then zoom out with the tiny little button on the left side of the scroll bar that appears. Have fun clicking it :)
+If you run a new trace and download it, the current trace data is discarded unless you've saved it.
+
+Enjoy!
