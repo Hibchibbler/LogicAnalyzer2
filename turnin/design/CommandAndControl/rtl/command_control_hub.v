@@ -1,4 +1,21 @@
 `timescale 1ps/100fs
+//////////////////////////////////////////////////////////////////////////////////
+// Command and Control Interface/Hub
+// 
+// Logic Analyzer
+// Portland State University, 2015
+//  Dan Ferguson
+//  Brandon Mousseau
+//  Chip Wood
+//
+// This module is intended to interface several other modules together:
+//  LogCap
+//  Command_control
+//  UART
+//
+// LogCap talks with Command_control through the reg in/out registers,
+// while Command_control talks to the outside world through UART
+//////////////////////////////////////////////////////////////////////////////////
 module  command_control_hub
 (
     input  wire       clk,

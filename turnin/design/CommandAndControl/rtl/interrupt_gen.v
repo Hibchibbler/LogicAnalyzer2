@@ -1,22 +1,15 @@
 `timescale 1ps/100fs
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
+// PicoBlaze Interrupt Generator
 // 
-// Create Date: 11/22/2015 08:48:00 PM
-// Design Name: 
-// Module Name: interrupt_gen
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
+// Logic Analyzer
+// Portland State University, 2015
+//  Dan Ferguson
+//  Brandon Mousseau
+//  Chip Wood
+//
+// This module generates a 3 cycle pulse every 1 second, intended to act as a
+// clock for a heartbeat signal via LEDs on the Nexys4DDR development board.
 //////////////////////////////////////////////////////////////////////////////////
 
 
