@@ -73,7 +73,6 @@ module  command_control_hub
     
 );
 
-
     localparam  PA_READ_LOGCAP_REGISTER0    = 8'h00,
                 PA_READ_LOGCAP_REGISTER1    = 8'h01,
                 PA_READ_LOGCAP_REGISTER2    = 8'h02,
@@ -145,7 +144,6 @@ module  command_control_hub
     assign utx_buffer_write =  write_strobe && (port_id == PA_WRITE_UART_DATA);
     assign data_tx = port_out;    
     
-
     //General Reads
     always @(posedge clk) begin
         case (port_id[3:0])
@@ -173,7 +171,6 @@ module  command_control_hub
         endcase
     end
     
-    
     //UART Read strobe is registered.
     always @(posedge clk) begin
         if (reset == 1'b1)
@@ -188,7 +185,6 @@ module  command_control_hub
     end
 
     //Generate an Interrupt every second for Command&Control(100MHz clk)
-
     interrupt_gen ig
     (
         //Input

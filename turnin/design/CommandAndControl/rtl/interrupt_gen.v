@@ -24,9 +24,6 @@ module interrupt_gen
 
     reg [26:0] interrupt1s_counter;
     
-
-    
-
     always @(posedge clk) begin
         if (reset == 1'b1) begin
             interrupt1s_counter <= 27'd0;
