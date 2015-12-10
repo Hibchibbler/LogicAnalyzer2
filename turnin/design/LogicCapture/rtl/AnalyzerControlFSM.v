@@ -4,7 +4,9 @@
  * control signals start and abort as well as local status
  * signals sawTrigger and complete to update the state
  * of the peripheral accordingly. 
- * Possible states are idle, pre_trigger, and post_trigger. 
+ * Possible states are idle, pre_trigger, and post_trigger.
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
  */
 module AnalyzerControlFSM (
     input clk,
