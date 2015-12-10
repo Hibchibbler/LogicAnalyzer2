@@ -1,4 +1,13 @@
 `timescale 1ps/100fs
+/* dataDumpFSM.v
+ * This module is responsible for providing control signals
+ * necessary to transmit data from the memory interface to
+ * the LogicCaptureTop output registers during the read trace mode.
+ * It transmits the data for each memory read its two chunks of
+ * 64 bits.
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
+ */
 module dataDumpFSM (
     input clk,
     input reset,

@@ -2,8 +2,9 @@
 /* analyzerReadbackFSM.v - Module is responsible for issuing
  * read requests to the memory interface at the rate throttled
  * by the data consumer.
+ *
+ * Author: Brandon Mousseau bam7@pdx.edu
  */
-
 module analyzerReadbackFSM #(
     parameter SAMPLE_WIDTH        = 16,
     parameter SAMPLE_PACKET_WIDTH = 32,
